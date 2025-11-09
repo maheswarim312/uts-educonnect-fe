@@ -10,12 +10,12 @@ export default function Home() {
         <input 
           type="email" 
           placeholder="Email" 
-          className="border p-2 rounded text-black" 
+          className="border border-gray-700 bg-gray-900 text-white p-2 rounded" 
         />
         <input 
           type="password" 
           placeholder="Password" 
-          className="border p-2 rounded text-black" 
+          className="border border-gray-700 bg-gray-900 text-white p-2 rounded" 
         />
         <button 
           type="submit" 
