@@ -192,32 +192,6 @@ export default function Register() {
               </motion.div>
             )}
 
-            {/* Benefits List */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.8 }}
-              className="bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-xl"
-            >
-              <p className="text-sm font-medium text-gray-700 mb-2">
-                Yang kamu dapatkan:
-              </p>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <CheckCircle className="w-4 h-4 text-green-500" />
-                  Akses ke ribuan materi belajar
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <CheckCircle className="w-4 h-4 text-green-500" />
-                  Diskusi dengan mentor & teman
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <CheckCircle className="w-4 h-4 text-green-500" />
-                  Sertifikat setelah selesai kursus
-                </div>
-              </div>
-            </motion.div>
-
             {/* Register Button */}
             <motion.button
               type="submit"
