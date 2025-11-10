@@ -99,7 +99,7 @@ export default function AdminUsersPage() {
           params.append("sort_by", sortConfig.key);
           params.append("sort_direction", sortConfig.direction);
 
-          const data = await apiFetch(`/api/v1/users?${params.toString()}`);
+          const data = await apiFetch(`/api/users?${params.toString()}`);
 
           setUsers(data.data);
           setPaginationInfo(data);
@@ -126,7 +126,7 @@ export default function AdminUsersPage() {
           setProfileError(null);
 
           const data = await apiFetch(
-            `/api/v1/users/${viewingUser.id}/profile`
+            `/api/users/${viewingUser.id}/profile`
           );
 
           setProfileDetail(data);
@@ -157,7 +157,7 @@ export default function AdminUsersPage() {
     try {
       setDataError(null);
 
-      const newUser = await apiFetch("/api/v1/users", {
+      const newUser = await apiFetch("/api/users", {
         method: "POST",
         body: JSON.stringify({
           name: newName,
@@ -192,7 +192,7 @@ export default function AdminUsersPage() {
     try {
       setDataError(null);
 
-      await apiFetch(`/api/v1/users/${userId}`, {
+      await apiFetch(`/api/users/${userId}`, {
         method: "DELETE",
       });
 
@@ -254,7 +254,7 @@ export default function AdminUsersPage() {
 
     try {
       const updatedUserData = await apiFetch(
-        `/api/v1/users/${editingUser.id}`,
+        `/api/users/${editingUser.id}`,
         {
           method: "PUT",
           body: JSON.stringify({

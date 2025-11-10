@@ -29,7 +29,7 @@ export function AuthProvider({ children }) {
 
     try {
       const res = await fetch(
-        "https://api.uts-educonnect.online/api/v1/auth/login",
+        "https://api.uts-educonnect.online/api/auth/login",
         {
           method: "POST",
           headers: {
@@ -68,7 +68,7 @@ export function AuthProvider({ children }) {
 
     try {
       const res = await fetch(
-        "https://api.uts-educonnect.online/api/v1/auth/register",
+        "https://api.uts-educonnect.online/api/auth/register",
         {
           method: "POST",
           headers: {

@@ -35,7 +35,7 @@ export default function ProfilePage() {
       const fetchProfile = async () => {
         try {
           setProfileLoading(true);
-          const data = await apiFetch("/api/v1/profile/me");
+          const data = await apiFetch("/api/profile/me");
           setProfileData(data.data);
           setFormData(data.data || {}); 
         } catch (err) {
@@ -60,7 +60,7 @@ export default function ProfilePage() {
     e.preventDefault();
     const loadingToast = toast.loading("Menyimpan profil...");
     try {
-      const data = await apiFetch("/api/v1/profile/me", {
+      const data = await apiFetch("/api/profile/me", {
         method: "PUT",
         body: JSON.stringify(formData)
       });
