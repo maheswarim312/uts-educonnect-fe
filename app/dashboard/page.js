@@ -159,6 +159,14 @@ export default function DashboardPage() {
                 </Link>
               )}
               
+              <Link
+                href="/profile"
+                className="w-10 h-10 bg-white/80 backdrop-blur-lg rounded-full flex items-center justify-center border border-gray-200 shadow-sm text-gray-600 hover:text-blue-600 hover:border-blue-300 transition-all"
+                title="Edit Profil Kamu"
+              >
+                <User className="w-5 h-5" />
+              </Link>
+
               <button
                 onClick={handleLogout}
                 className="flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-all"
