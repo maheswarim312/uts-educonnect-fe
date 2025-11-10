@@ -1,14 +1,14 @@
 openapi: 3.0.0
 info:
-  title: "EduConnect API (Proyek UTS EAI)"
+  title: "EduConnect API (Proyek UTS EAI) Kelompok 2"
   description: |
-    Dokumentasi API Gateway terpusat untuk microservice EduConnect.
+    Dokumentasi API Gateway untuk API EduConnect.
     Semua endpoint di bawah ini diakses melalui SATU Pintu Masuk (Gateway).
 
     Penanggung Jawab Service:
     - User/Auth/Profile: Mahes
-    - Course/Material: Yoga (di-enhance oleh Mahes)
-    - Enrollment: Okta (di-enhance oleh Mahes)
+    - Course/Material: Yoga
+    - Enrollment: Okta
   version: "1.0.0"
 
 servers:
