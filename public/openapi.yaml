@@ -1,0 +1,672 @@
+openapi: 3.0.0
+info:
+  title: "EduConnect API (Proyek UTS EAI)"
+  description: |
+    Dokumentasi API Gateway terpusat untuk microservice EduConnect.
+    Semua endpoint di bawah ini diakses melalui SATU Pintu Masuk (Gateway).
+
+    Penanggung Jawab Service:
+    - User/Auth/Profile: Mahes
+    - Course/Material: Yoga (di-enhance oleh Mahes)
+    - Enrollment: Okta (di-enhance oleh Mahes)
+  version: "1.0.0"
+
+servers:
+  - url: "https://api.uts-educonnect.online"
+    description: "Production API Gateway (Cloudflare)"
+
+tags:
+  - name: "Auth Service"
+    description: "Otentikasi, Registrasi, Lupa Password (dari user-service)"
+  - name: "User Service (Admin)"
+    description: "CRUD Master User oleh Admin (dari user-service)"
+  - name: "Profile Service"
+    description: "CRUD Profil Murid/Pengajar (dari user-service)"
+  - name: "Course Service"
+    description: "CRUD Kursus, Materi, Jadwal (dari course-service)"
+  - name: "Enrollment Service"
+    description: "Pendaftaran (enroll) murid (dari enrollment-service)"
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  
+  schemas:
+    Schedule:
+      type: object
+      properties:
+        day:
+          type: string
+          example: "Selasa"
+        time:
+          type: string
+          example: "10:00:00"
+    
+    Material:
+      type: object
+      properties:
+        title:
+          type: string
+          example: "Bab 1: Intro"
+        type:
+          type: string
+          example: "video"
+        url:
+          type: string
+          example: "http://..."
+    
+    CreateCourseRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          example: "Kursus Super Lengkap"
+        description:
+          type: string
+          example: "Deskripsi..."
+        teacher_id:
+          type: integer
+          example: 11
+          description: "Opsional untuk Admin"
+        schedule:
+          $ref: "#/components/schemas/Schedule"
+        materials:
+          type: array
+          items:
+            $ref: "#/components/schemas/Material"
+    
+    CourseResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 6
+        title:
+          type: string
+          example: "Kursus Super Lengkap"
+        description:
+          type: string
+          example: "Deskripsi..."
+        teacher_id:
+          type: integer
+          example: 11
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        materials:
+          type: array
+          items:
+            $ref: "#/components/schemas/Material"
+        schedule:
+          $ref: "#/components/schemas/Schedule"
+
+paths:
+  /api/auth/register:
+    post:
+      tags:
+        - Auth Service
+      summary: "Registrasi User Baru (Publik)"
+      description: "Publik mendaftar sebagai 'murid' baru."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: "Murid Baru"
+                email:
+                  type: string
+                  example: "murid.baru@email.com"
+                password:
+                  type: string
+                  example: "password123"
+      responses:
+        "201":
+          description: "Registrasi berhasil, user murid dibuat."
+        "422":
+          description: "Validasi error (misal: email sudah terdaftar)"
+
+  /api/auth/login:
+    post:
+      tags:
+        - Auth Service
+      summary: "Login User (Publik)"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  example: "admin@gmail.com"
+                password:
+                  type: string
+                  example: "admin123"
+      responses:
+        "200":
+          description: "Login Berhasil (Dapat Token & User)"
+          content:
+            application/json:
+              example:
+                token: "57|ppjts3NgxWmR3W..."
+                token_type: "Bearer"
+                user:
+                  id: 2
+                  name: "Admin"
+                  role: "admin"
+        "401":
+          description: "Email atau password salah"
+
+  /api/auth/me:
+    get:
+      tags:
+        - Auth Service
+      summary: "Get Data Diri (Wajib Login)"
+      description: "Mengambil data user (Admin/Pengajar/Murid) yang sedang login."
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: "Data user yang login"
+        "401":
+          description: "Token tidak valid"
+
+  /api/auth/logout:
+    post:
+      tags:
+        - Auth Service
+      summary: "Logout User (Wajib Login)"
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: "Logout berhasil"
+
+  /api/users:
+    get:
+      tags:
+        - User Service (Admin)
+      summary: "Get Semua User (Admin Only, Paginated)"
+      description: "Mengambil daftar user dengan Paginasi, Filter, Sort, dan Search."
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 5
+        - name: role
+          in: query
+          schema:
+            type: string
+            enum:
+              - all
+              - murid
+              - pengajar
+              - admin
+            default: all
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            default: id
+        - name: sort_direction
+          in: query
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            default: asc
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Daftar User (Paginated)"
+          content:
+            application/json:
+              example:
+                current_page: 1
+                data:
+                  - id: 1
+                    name: "Murid Tes"
+                last_page: 2
+                total: 9
+        "401":
+          description: "Token tidak valid"
+        "403":
+          description: "Akses ditolak (Bukan Admin)"
+
+    post:
+      tags:
+        - User Service (Admin)
+      summary: "Create User Baru (Admin Only)"
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: "User Baru"
+                email:
+                  type: string
+                  example: "baru@email.com"
+                password:
+                  type: string
+                  example: "password123"
+                role:
+                  type: string
+                  enum:
+                    - murid
+                    - pengajar
+                    - admin
+                  example: "pengajar"
+      responses:
+        "201":
+          description: "User berhasil dibuat"
+        "422":
+          description: "Validasi error"
+
+  /api/users/{id}:
+    put:
+      tags:
+        - User Service (Admin)
+      summary: "Update User (Admin Only)"
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        description: "Semua field opsional. Backend akan menghapus profil lama jika role diganti."
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: "Nama Update"
+                email:
+                  type: string
+                  example: "update@email.com"
+                role:
+                  type: string
+                  enum:
+                    - murid
+                    - pengajar
+                    - admin
+      responses:
+        "200":
+          description: "User berhasil diupdate"
+        "404":
+          description: "User tidak ditemukan"
+
+    delete:
+      tags:
+        - User Service (Admin)
+      summary: "Delete User (Admin Only)"
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: "User berhasil dihapus"
+        "404":
+          description: "User tidak ditemukan"
+
+  /api/profile/me:
+    get:
+      tags:
+        - Profile Service
+      summary: "Get Profil Diri (Murid/Pengajar)"
+      description: "Murid/Pengajar mengambil data profil (NIM/NIP) miliknya."
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: "Sukses (dapat data profil atau 404 jika belum diisi)"
+        "403":
+          description: "Admin tidak punya profil"
+
+    put:
+      tags:
+        - Profile Service
+      summary: "Update Profil Diri (Murid/Pengajar)"
+      description: "Murid/Pengajar meng-update profil (NIM/NIP) miliknya."
+      security:
+        - BearerAuth: []
+      requestBody:
+        description: "Kirim data sesuai role (Murid: nim, jurusan, dll. Pengajar: nip, bidang, dll)"
+        content:
+          application/json:
+            examples:
+              Murid:
+                value:
+                  nim: "123456"
+                  jurusan: "Informatika"
+                  angkatan: 2023
+              Pengajar:
+                value:
+                  nip: "987654"
+                  bidang: "AI"
+      responses:
+        "200":
+          description: "Profil berhasil disimpan"
+        "422":
+          description: "Validasi error (misal: NIM wajib diisi)"
+
+  /api/users/{id}/profile:
+    get:
+      tags:
+        - User Service (Admin)
+      summary: "Admin Lihat Profil User Lain (Admin Only)"
+      description: "Admin melihat detail profil (NIM/NIP) milik user lain."
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: "Sukses (dapat data profil, atau info 'belum diisi')"
+        "404":
+          description: "User tidak ditemukan"
+
+  /api/courses:
+    get:
+      tags:
+        - Course Service
+      summary: "Get Semua Kursus (Wajib Login)"
+      description: "Mengambil daftar semua kursus (tanpa paginasi)."
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: "Daftar semua kursus (Array)"
+          content:
+            application/json:
+              example:
+                - id: 1
+                  title: "Belajar Backend"
+                  teacher_id: 11
+                  materials: []
+                  schedule: {}
+
+    post:
+      tags:
+        - Course Service
+      summary: "Create Kursus Baru (Pengajar/Admin)"
+      description: |
+        Pengajar/Admin membuat kursus baru.
+        - Jika Pengajar: 'teacher_id' otomatis diisi.
+        - Jika Admin: 'teacher_id' opsional.
+        - Bisa nested create untuk 'schedule' dan 'materials'.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCourseRequest"
+      responses:
+        "201":
+          description: "Kursus berhasil dibuat"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseResponse"
+        "403":
+          description: "Ditolak (Murid tidak boleh)"
+
+  /api/courses/{id}:
+    get:
+      tags:
+        - Course Service
+      summary: "Get Detail Kursus (Wajib Login)"
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: "Detail kursus (termasuk materials & schedule)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseResponse"
+        "404":
+          description: "Kursus tidak ditemukan"
+
+    put:
+      tags:
+        - Course Service
+      summary: "Update Kursus (Pengajar/Admin)"
+      description: |
+        - Admin: Boleh update semua.
+        - Pengajar: Hanya boleh update course miliknya, dan tidak boleh ganti 'teacher_id'.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCourseRequest"
+      responses:
+        "200":
+          description: "Kursus berhasil diupdate"
+        "403":
+          description: "Ditolak (Bukan pemilik kursus)"
+        "404":
+          description: "Kursus tidak ditemukan"
+
+    delete:
+      tags:
+        - Course Service
+      summary: "Delete Kursus (Pengajar/Admin)"
+      description: |
+        - Admin: Boleh hapus semua.
+        - Pengajar: Hanya boleh hapus course miliknya.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: "Course berhasil dihapus"
+        "403":
+          description: "Ditolak (Bukan pemilik kursus)"
+
+  /api/courses/{id}/assign-teacher:
+    post:
+      tags:
+        - Course Service
+      summary: "Ganti Pengajar (Admin Only)"
+      description: "Admin memindahkan 'teacher_id' (kepemilikan) kursus."
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                teacher_id:
+                  type: integer
+                  example: 99
+      responses:
+        "200":
+          description: "Pengajar berhasil diganti"
+
+  /api/courses/{courseId}/materials:
+    post:
+      tags:
+        - Course Service
+      summary: "Tambah Material ke Kursus (Pengajar/Admin)"
+      description: "Menambahkan 1 material (video, pdf) ke kursus yang ada."
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  example: "Bab 3: Deploy"
+                type:
+                  type: string
+                  example: "video"
+                url:
+                  type: string
+                  example: "http://..."
+      responses:
+        "201":
+          description: "Material berhasil ditambah"
+        "403":
+          description: "Ditolak (Bukan pemilik kursus)"
+
+  /api/courses/materials/{materialId}:
+    delete:
+      tags:
+        - Course Service
+      summary: "Hapus Material (Pengajar/Admin)"
+      description: "Menghapus 1 material dari database."
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: materialId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: "Material berhasil dihapus"
+        "403":
+          description: "Ditolak (Bukan pemilik kursus)"
+
+  /api/enrollments:
+    get:
+      tags:
+        - Enrollment Service
+      summary: "Get Data Enrollment (Wajib Login)"
+      description: |
+        Mengambil daftar pendaftaran.
+        - Murid: Hanya bisa lihat datanya sendiri.
+        - Admin/Pengajar: Bisa lihat semua, atau filter.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: student_id
+          in: query
+          description: "(Admin/Pengajar) Filter by student_id"
+          schema:
+            type: integer
+        - name: course_id
+          in: query
+          description: "(Admin/Pengajar) Filter by course_id"
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: "Daftar pendaftaran (Array)"
+
+    post:
+      tags:
+        - Enrollment Service
+      summary: "Daftarkan Murid ke Kursus (Wajib Login)"
+      description: |
+        Mendaftarkan murid ke kursus.
+        - Murid: Hanya boleh mendaftarkan dirinya sendiri.
+        - Admin/Pengajar: Boleh mendaftarkan student_id manapun.
+        - Akan otomatis cek jadwal bentrok (asumsi 2 jam).
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                student_id:
+                  type: integer
+                  example: 12
+                course_id:
+                  type: integer
+                  example: 7
+      responses:
+        "201":
+          description: "Siswa berhasil didaftarkan ke kursus"
+        "409":
+          description: "Konflik (Jadwal bentrok atau sudah terdaftar)"
+        "403":
+          description: "Ditolak (Murid coba mendaftarkan orang lain)"
+        "404":
+          description: "Kursus tidak ditemukan / belum ada jadwal"

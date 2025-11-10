@@ -1,27 +1,23 @@
 // File: app/profile/page.js
-// VERSI LENGKAP (Sudah ada form dinamis + API logic)
 
 "use client";
 
 import { useAuth } from "../context/AuthContext";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react"; // (1) Import useState
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, User, Shield, BookOpen, Briefcase } from "lucide-react"; // (2) Import ikon baru
-import toast, { Toaster } from "react-hot-toast"; // (3) Import Toaster
+import { ArrowLeft, User, Shield, BookOpen, Briefcase } from "lucide-react"; 
+import toast, { Toaster } from "react-hot-toast";
 import { motion } from "framer-motion";
 
 export default function ProfilePage() {
-  // (4) Ambil apiFetch dari brankas
   const { user, loading, logout, apiFetch } = useAuth();
   const router = useRouter();
 
-  // (5) State baru untuk form dan data profil
   const [profileData, setProfileData] = useState(null);
   const [formData, setFormData] = useState({});
   const [profileLoading, setProfileLoading] = useState(true);
 
-  // (6) "Satpam" (Sudah benar)
   useEffect(() => {
     if (loading) return;
     if (!user) {
@@ -29,7 +25,6 @@ export default function ProfilePage() {
     }
   }, [user, loading, router]);
 
-  // (7) "Pengambil Data Profil" (useEffect BARU)
   useEffect(() => {
     if (user && user.role !== 'admin') {
       const fetchProfile = async () => {
@@ -55,7 +50,6 @@ export default function ProfilePage() {
     }
   }, [user, apiFetch]);
 
-  // (8) Fungsi "Update Profil" (BARU)
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
     const loadingToast = toast.loading("Menyimpan profil...");
@@ -71,7 +65,6 @@ export default function ProfilePage() {
     }
   };
 
-  // (9) Fungsi "Form Change" (BARU)
   const handleFormChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -80,17 +73,14 @@ export default function ProfilePage() {
     }));
   };
 
-  // (10) Tampilan Loading (Versi PINTAR)
   if (loading || profileLoading || !user) {
     return (
       <main className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
-        {/* (Bisa pakai loading spinner-mu yang keren) */}
         <h1 className="text-3xl font-bold text-gray-700">Loading Data...</h1>
       </main>
     );
   }
 
-  // (11) Tampilan UTAMA (Versi BARU dengan form dinamis)
   return (
     <main className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-8 md:p-12">
       <Toaster />
@@ -105,7 +95,6 @@ export default function ProfilePage() {
           </Link>
         </div>
 
-        {/* --- Header Profil (dari kodemu) --- */}
         <div className="bg-white/80 backdrop-blur-lg rounded-2xl border border-gray-200 shadow-lg p-6 md:p-8 mb-8">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-4">
@@ -134,7 +123,6 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* ▼▼▼ FORM EDIT PROFIL (BAGIAN BARU) ▼▼▼ */}
         {user.role !== 'admin' ? (
           <div className="bg-white/80 backdrop-blur-lg rounded-2xl p-6 md:p-8 border border-gray-200 shadow-lg">
             <h2 className="text-2xl font-bold text-gray-800 mb-6">
@@ -143,7 +131,6 @@ export default function ProfilePage() {
 
             <form onSubmit={handleProfileUpdate}>
               
-              {/* --- FORM DINAMIS UNTUK MURID --- */}
               {user.role === 'murid' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -185,7 +172,6 @@ export default function ProfilePage() {
                 </div>
               )}
 
-              {/* --- FORM DINAMIS UNTUK PENGAJAR --- */}
               {user.role === 'pengajar' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -218,7 +204,6 @@ export default function ProfilePage() {
                 </div>
               )}
               
-              {/* Tombol Simpan */}
               <div className="mt-6 text-right">
                 <motion.button 
                   type="submit"
@@ -233,7 +218,6 @@ export default function ProfilePage() {
             </form>
           </div>
         ) : (
-          // Ini untuk ADMIN
           <div className="bg-white/80 backdrop-blur-lg rounded-2xl p-6 md:p-8 border border-gray-200 shadow-lg">
             <h2 className="text-2xl font-bold text-gray-800">
               Profil Admin
@@ -244,8 +228,6 @@ export default function ProfilePage() {
             </p>
           </div>
         )}
-        {/* ▲▲▲ SELESAI FORM EDIT PROFIL ▲▲▲ */}
-
       </div>
     </main>
   );
