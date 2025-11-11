@@ -43,18 +43,16 @@ export function AuthProvider({ children }) {
       const data = await res.json();
 
       if (res.ok) {
-        // Simpan user & token ke state
-        setUser(data.user);
+        setUser(data.data);
         setToken(data.token);
 
         localStorage.setItem("educonnect_token", data.token);
-        localStorage.setItem("educonnect_user", JSON.stringify(data.user));
+        localStorage.setItem("educonnect_user", JSON.stringify(data.data));
 
         console.log("Disimpan ke Context & localStorage:", data);
 
         router.push("/dashboard");
       } else {
-        // Jika gagal! Simpan pesan error-nya
         setError(data.message || "Login gagal");
       }
     } catch (err) {
@@ -81,7 +79,7 @@ export function AuthProvider({ children }) {
 
       const data = await res.json();
 
-      if (res.ok) {
+      if (res.ok && data.status === 'success') {
         console.log("Registrasi Berhasil:", data);
         router.push("/");
       } else {

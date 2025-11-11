@@ -53,6 +53,7 @@ export default function AdminUsersPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const [paginationInfo, setPaginationInfo] = useState(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // State untuk modal edit
   const [editingUser, setEditingUser] = useState(null);
@@ -115,7 +116,15 @@ export default function AdminUsersPage() {
 
       fetchUsers();
     }
-  }, [user, apiFetch, currentPage, roleFilter, sortConfig, searchQuery]);
+  }, [
+    user,
+    apiFetch,
+    currentPage,
+    roleFilter,
+    sortConfig,
+    searchQuery,
+    refreshTrigger,
+  ]);
 
   useEffect(() => {
     if (viewingUser) {
@@ -125,9 +134,7 @@ export default function AdminUsersPage() {
           setProfileDetail(null);
           setProfileError(null);
 
-          const data = await apiFetch(
-            `/api/users/${viewingUser.id}/profile`
-          );
+          const data = await apiFetch(`/api/users/${viewingUser.id}/profile`);
 
           setProfileDetail(data);
           console.log("Profile Detail:", data);
@@ -167,14 +174,14 @@ export default function AdminUsersPage() {
         }),
       });
 
-      setUsers((prev) => [newUser, ...prev]);
+      setCurrentPage(1);
 
       setNewName("");
       setNewEmail("");
       setNewPassword("");
       setNewRole("murid");
 
-      toast.success(`User "${newUser.name}" created successfully!`, {
+      toast.success(`User "${newUser.data.name}" created successfully!`, {
         id: loadingToast,
       });
     } catch (err) {
@@ -196,7 +203,7 @@ export default function AdminUsersPage() {
         method: "DELETE",
       });
 
-      setUsers((prev) => prev.filter((user) => user.id !== userId));
+      setRefreshTrigger((key) => key + 1);
       toast.success(`User "${userName}" deleted successfully!`, {
         id: loadingToast,
       });
@@ -253,21 +260,16 @@ export default function AdminUsersPage() {
     const loadingToast = toast.loading(`Updating ${editName}...`);
 
     try {
-      const updatedUserData = await apiFetch(
-        `/api/users/${editingUser.id}`,
-        {
-          method: "PUT",
-          body: JSON.stringify({
-            name: editName,
-            email: editEmail,
-            role: editRole,
-          }),
-        }
-      );
+      const updatedUserData = await apiFetch(`/api/users/${editingUser.id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          name: editName,
+          email: editEmail,
+          role: editRole,
+        }),
+      });
 
-      setUsers((prev) =>
-        prev.map((u) => (u.id === editingUser.id ? updatedUserData.data : u))
-      );
+      setRefreshTrigger((key) => key + 1);
 
       toast.success(`User "${updatedUserData.data.name}" updated!`, {
         id: loadingToast,
@@ -280,7 +282,6 @@ export default function AdminUsersPage() {
   };
 
   const handleLogout = () => {
-    toast.loading("Logging out...");
     setTimeout(() => {
       logout();
       toast.success("Logged out successfully!");
@@ -546,7 +547,7 @@ export default function AdminUsersPage() {
                     className="w-full pl-12 pr-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all outline-none text-gray-800"
                   />
                 </div>
-                
+
                 {/* Filter by Role */}
                 <div className="relative sm:w-64">
                   <Filter className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
@@ -772,9 +773,19 @@ export default function AdminUsersPage() {
                 <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-6 pt-6 border-t border-gray-200">
                   {/* Info Text */}
                   <div className="text-sm text-gray-600">
-                    Showing <span className="font-semibold text-gray-800">{paginationInfo.from || 0}</span> to{" "}
-                    <span className="font-semibold text-gray-800">{paginationInfo.to || 0}</span> of{" "}
-                    <span className="font-semibold text-gray-800">{paginationInfo.total || 0}</span> users
+                    Showing{" "}
+                    <span className="font-semibold text-gray-800">
+                      {paginationInfo.from || 0}
+                    </span>{" "}
+                    to{" "}
+                    <span className="font-semibold text-gray-800">
+                      {paginationInfo.to || 0}
+                    </span>{" "}
+                    of{" "}
+                    <span className="font-semibold text-gray-800">
+                      {paginationInfo.total || 0}
+                    </span>{" "}
+                    users
                   </div>
 
                   {/* Pagination Buttons */}
@@ -796,8 +807,11 @@ export default function AdminUsersPage() {
 
                     {/* Page Numbers */}
                     <div className="flex items-center gap-1">
-                      {Array.from({ length: paginationInfo.last_page }, (_, i) => i + 1)
-                        .filter(page => {
+                      {Array.from(
+                        { length: paginationInfo.last_page },
+                        (_, i) => i + 1
+                      )
+                        .filter((page) => {
                           return (
                             page === 1 ||
                             page === paginationInfo.last_page ||
@@ -928,7 +942,8 @@ export default function AdminUsersPage() {
 
                 <p className="text-sm text-gray-500">
                   <AlertCircle className="w-4 h-4 inline mr-1" />
-                  Password tidak bisa diubah dari sini. Jika perlu, hapus dan buat ulang.
+                  Password tidak bisa diubah dari sini. Jika perlu, hapus dan
+                  buat ulang.
                 </p>
 
                 <div className="flex justify-end gap-3 pt-4">

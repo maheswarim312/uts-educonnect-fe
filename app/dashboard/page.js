@@ -21,67 +21,29 @@ import {
   GraduationCap,
   BarChart,
   ListOrdered,
+  CalendarDays,
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 
 export default function DashboardPage() {
-  const { user, token, logout, loading } = useAuth();
+  const { user, token, logout, loading, apiFetch } = useAuth();
   const router = useRouter();
   const [greeting, setGreeting] = useState("");
 
-  // Dummy data courses - nanti bisa diganti dengan API call
-  const courses = [
-    {
-      id: 1,
-      title: "Web Development Fundamentals",
-      instructor: "Dr. Sarah Johnson",
-      progress: 65,
-      thumbnail: "https://images.unsplash.com/photo-1593720213428-28a5b9e94613?w=400&h=250&fit=crop",
-      duration: "12 hours",
-      rating: 4.8,
-      students: 1234,
-      category: "Programming",
-    },
-    {
-      id: 2,
-      title: "UI/UX Design Masterclass",
-      instructor: "Alex Chen",
-      progress: 40,
-      thumbnail: "https://images.unsplash.com/photo-1561070791-2526d30994b5?w=400&h=250&fit=crop",
-      duration: "8 hours",
-      rating: 4.9,
-      students: 890,
-      category: "Design",
-    },
-    {
-      id: 3,
-      title: "Data Science with Python",
-      instructor: "Prof. Michael Brown",
-      progress: 20,
-      thumbnail: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&h=250&fit=crop",
-      duration: "15 hours",
-      rating: 4.7,
-      students: 2100,
-      category: "Data Science",
-    },
-    {
-      id: 4,
-      title: "Digital Marketing Strategy",
-      instructor: "Emma Wilson",
-      progress: 0,
-      thumbnail: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&h=250&fit=crop",
-      duration: "6 hours",
-      rating: 4.6,
-      students: 567,
-      category: "Marketing",
-    },
-  ];
+  const [myCourses, setMyCourses] = useState([]);
+  const [coursesLoading, setCoursesLoading] = useState(true);
+  const [coursesError, setCoursesError] = useState(null);
 
   const stats = [
     { label: "Courses Enrolled", value: "4", icon: BookOpen, color: "blue" },
     { label: "Hours Learned", value: "27", icon: Clock, color: "purple" },
     { label: "Certificates", value: "2", icon: Award, color: "yellow" },
-    { label: "Course Progress", value: "31%", icon: TrendingUp, color: "green" },
+    {
+      label: "Course Progress",
+      value: "31%",
+      icon: TrendingUp,
+      color: "green",
+    },
   ];
 
   useEffect(() => {
@@ -93,7 +55,7 @@ export default function DashboardPage() {
       if (hour < 12) setGreeting("Selamat Pagi");
       else if (hour < 18) setGreeting("Selamat Siang");
       else setGreeting("Selamat Malam");
-      
+
       toast.success(`Welcome back, ${user.name}! 🎉`, {
         duration: 3000,
         position: "top-center",
@@ -101,8 +63,74 @@ export default function DashboardPage() {
     }
   }, [user, loading, router]);
 
+  useEffect(() => {
+    if (user) {
+      const fetchMyCourses = async () => {
+        try {
+          setCoursesLoading(true);
+          setCoursesError(null);
+
+          const enrollmentResponse = await apiFetch("/api/enrollments");
+          if (enrollmentResponse.status !== "success") {
+            throw new Error(
+              enrollmentResponse.message || "Gagal ambil data enrollment"
+            );
+          }
+          const enrollments = enrollmentResponse.data || [];
+
+          if (enrollments.length === 0) {
+            setMyCourses([]);
+            setCoursesLoading(false);
+            return;
+          }
+
+          const courseDetailPromises = enrollments.map(async (enroll) => {
+            const courseRes = await apiFetch(
+              `/api/courses/${enroll.course_id}`
+            );
+            if (courseRes.status !== "success") {
+              console.error(`Gagal ambil course ID ${enroll.course_id}`);
+              return null;
+            }
+            const courseData = courseRes.data;
+
+            try {
+              const enrollCountRes = await apiFetch(
+                `/api/enrollments?course_id=${enroll.course_id}`
+              );
+              if (enrollCountRes.status === "success") {
+                courseData.students = enrollCountRes.count;
+              } else {
+                courseData.students = 0;
+              }
+            } catch (e) {
+              courseData.students = 0;
+            }
+
+            courseData.duration = courseData.schedule ? "2 jam" : "N/A";
+
+            return courseData;
+          });
+
+          const courseDetails = (
+            await Promise.all(courseDetailPromises)
+          ).filter(Boolean);
+
+          setMyCourses(courseDetails);
+          toast.success("My Courses loaded!");
+        } catch (err) {
+          setCoursesError(err.message);
+          toast.error(`Gagal load courses: ${err.message}`);
+        } finally {
+          setCoursesLoading(false);
+        }
+      };
+
+      fetchMyCourses();
+    }
+  }, [user, apiFetch]);
+
   const handleLogout = () => {
-    toast.loading("Logging out...");
     setTimeout(() => {
       logout();
       toast.success("Logged out successfully!");
@@ -131,7 +159,7 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
       <Toaster />
-      
+
       {/* Top Navigation */}
       <motion.nav
         initial={{ y: -20, opacity: 0 }}
@@ -148,7 +176,7 @@ export default function DashboardPage() {
                 EduConnect
               </span>
             </div>
-            
+
             <div className="flex items-center gap-4">
               {user.role === "admin" && (
                 <Link
@@ -159,7 +187,7 @@ export default function DashboardPage() {
                   Admin Panel
                 </Link>
               )}
-            
+
               {(user.role === "admin" || user.role === "pengajar") && (
                 <Link
                   href="/admin/courses_admin" // Ganti dengan URL halaman manajemen kursus yang kamu buat
@@ -169,7 +197,7 @@ export default function DashboardPage() {
                   Courses
                 </Link>
               )}
-              
+
               <Link
                 href="/profile"
                 className="w-10 h-10 bg-white/80 backdrop-blur-lg rounded-full flex items-center justify-center border border-gray-200 shadow-sm text-gray-600 hover:text-blue-600 hover:border-blue-300 transition-all"
@@ -226,14 +254,14 @@ export default function DashboardPage() {
               className="bg-white/80 backdrop-blur-lg rounded-2xl p-6 border border-gray-200 shadow-lg"
             >
               <div className="flex items-center justify-between mb-4">
-                <div
-                  className={`p-3 bg-${stat.color}-100 rounded-xl`}
-                >
+                <div className={`p-3 bg-${stat.color}-100 rounded-xl`}>
                   <stat.icon className={`w-6 h-6 text-${stat.color}-600`} />
                 </div>
                 <TrendingUp className="w-5 h-5 text-green-500" />
               </div>
-              <p className="text-2xl font-bold text-gray-800 mb-1">{stat.value}</p>
+              <p className="text-2xl font-bold text-gray-800 mb-1">
+                {stat.value}
+              </p>
               <p className="text-sm text-gray-600">{stat.label}</p>
             </motion.div>
           ))}
@@ -260,7 +288,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {courses.map((course, index) => (
+            {myCourses.map((course, index) => (
               <motion.div
                 key={course.id}
                 initial={{ opacity: 0, y: 20 }}
@@ -303,11 +331,15 @@ export default function DashboardPage() {
                   <h3 className="text-xl font-bold text-gray-800 mb-2 group-hover:text-blue-600 transition-colors">
                     {course.title}
                   </h3>
-                  
+
                   <div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
                     <User className="w-4 h-4" />
                     <span>{course.instructor}</span>
                   </div>
+
+                  <p className="text-sm text-gray-500 mb-4 line-clamp-2">
+                    {course.description || "Tidak ada deskripsi."}
+                  </p>
 
                   <div className="flex items-center justify-between text-sm text-gray-600 mb-4">
                     <div className="flex items-center gap-4">
@@ -317,28 +349,31 @@ export default function DashboardPage() {
                       </div>
                       <div className="flex items-center gap-1">
                         <Users className="w-4 h-4" />
-                        <span>{course.students}</span>
+                        <span>{course.students} Murid</span>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-1 text-yellow-500">
-                      <Star className="w-4 h-4 fill-current" />
-                      <span className="text-gray-700 font-semibold">{course.rating}</span>
+                      <div className="flex items-center gap-1">
+                        <CalendarDays className="w-4 h-4" />
+                        <span>Hari {course.schedule.day}, </span>
+                        <span>Pukul {course.schedule.time}</span>
+                      </div>
                     </div>
                   </div>
 
-                  <button className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 rounded-xl font-semibold hover:shadow-lg transition-all group">
-                    {course.progress > 0 ? (
-                      <>
-                        Continue Learning
-                        <Play className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                      </>
-                    ) : (
-                      <>
-                        Start Course
-                        <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                      </>
-                    )}
-                  </button>
+                  <Link href={`/courses/${course.id}`}>
+                    <button className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 rounded-xl font-semibold hover:shadow-lg transition-all group">
+                      {course.progress > 0 ? (
+                        <>
+                          Continue Learning
+                          <Play className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                        </>
+                      ) : (
+                        <>
+                          Start Course
+                          <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                        </>
+                      )}
+                    </button>
+                  </Link>
                 </div>
               </motion.div>
             ))}
@@ -354,7 +389,9 @@ export default function DashboardPage() {
         >
           <div className="flex items-center gap-3 mb-4">
             <BarChart className="w-6 h-6 text-blue-600" />
-            <h3 className="text-xl font-bold text-gray-800">This Week's Activity</h3>
+            <h3 className="text-xl font-bold text-gray-800">
+              This Week's Activity
+            </h3>
           </div>
           <div className="grid grid-cols-7 gap-2">
             {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day, i) => (

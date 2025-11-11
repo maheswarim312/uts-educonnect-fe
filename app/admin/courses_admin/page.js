@@ -313,7 +313,6 @@ export default function AdminCoursesPage() {
   };
 
   const handleLogout = () => {
-    toast.loading("Logging out...");
     setTimeout(() => {
       logout();
       toast.success("Logged out successfully!");
