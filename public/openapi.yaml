@@ -9,6 +9,7 @@ info:
     - User/Auth/Profile: Mahes
     - Course/Material: Yoga
     - Enrollment: Okta
+    - Grade: Fachri
   version: "1.0.0"
 
 servers:
@@ -26,6 +27,8 @@ tags:
     description: "CRUD Kursus, Materi, Jadwal (dari course-service)"
   - name: "Enrollment Service"
     description: "Pendaftaran (enroll) murid (dari enrollment-service)"
+  - name: "Grade Service"
+    description: "CRUD Nilai (dari grade-service)"
 
 components:
   securitySchemes:
@@ -105,6 +108,27 @@ components:
             $ref: "#/components/schemas/Material"
         schedule:
           $ref: "#/components/schemas/Schedule"
+
+    Grade:
+    type: object
+    properties:
+      id: { type: integer, example: 1 }
+      studentID: { type: integer, example: 12 }
+      courseID: { type: integer, example: 7 }
+      teacherID: { type: integer, example: 3 }
+      grade: { type: string, example: "A-" }
+      remarks: { type: string, example: "Good job", nullable: true }
+      createAt: { type: string, format: "date-time" } # (Nama kolom di DB Fachri 'createAt')
+  
+  GradeInput:
+    type: object
+    required: [studentID, courseID, teacherID, grade]
+    properties:
+      studentID: { type: integer, example: 12 }
+      courseID: { type: integer, example: 7 }
+      teacherID: { type: integer, example: 3 }
+      grade: { type: string, example: "A-" }
+      remarks: { type: string, example: "Good job" }
 
 paths:
   /api/auth/register:
@@ -670,3 +694,175 @@ paths:
           description: "Ditolak (Murid coba mendaftarkan orang lain)"
         "404":
           description: "Kursus tidak ditemukan / belum ada jadwal"
+
+  /api/grades:
+    get:
+      tags: [Grade Service]
+      summary: "Get Data Nilai (Wajib Login, Role-Based)"
+      description: |
+        Mengambil daftar nilai.
+        - Murid: Hanya bisa lihat datanya sendiri (otomatis ter-filter).
+        - Admin/Pengajar: Bisa lihat semua, atau filter pakai query.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: studentID
+          in: query
+          description: "(Admin/Pengajar) Filter by student_id"
+          schema: { type: integer }
+        - name: courseID
+          in: query
+          description: "(Admin/Pengajar) Filter by course_id"
+          schema: { type: integer }
+        - name: teacherID
+          in: query
+          description: "(Admin/Pengajar) Filter by teacher_id"
+          schema: { type: integer }
+      responses:
+        "200":
+          description: "Daftar nilai (Array)"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  count: { type: integer, example: 1 }
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Grade"
+        "401":
+          description: "Token tidak valid"
+
+    post:
+      tags: [Grade Service]
+      summary: "Create Nilai Baru (Pengajar/Admin)"
+      description: "Pengajar atau Admin meng-input nilai baru untuk seorang murid."
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GradeInput"
+      responses:
+        "201":
+          description: "Nilai berhasil dibuat"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Grade"
+        "403":
+          description: "Ditolak (Murid tidak boleh)"
+        "422":
+          description: "Validasi error (field wajib tidak diisi)"
+
+  /api/grades/{id}:
+    get:
+      tags: [Grade Service]
+      summary: "Get Detail Nilai by ID (Wajib Login, Role-Based)"
+      description: |
+        Mengambil 1 data nilai spesifik.
+        - Murid: Hanya boleh lihat jika 'studentID' di nilai itu miliknya.
+        - Admin/Pengajar: Boleh lihat semua.
+      security:
+        - BearerAuth: []
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: "Detail data nilai"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Grade"
+        "403":
+          description: "Ditolak (Murid coba intip nilai orang lain)"
+        "404":
+          description: "Nilai tidak ditemukan"
+
+    put:
+      tags: [Grade Service]
+      summary: "Update Nilai (Pengajar/Admin)"
+      security:
+        - BearerAuth: []
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GradeInput"
+      responses:
+        "200":
+          description: "Nilai berhasil diupdate"
+        "403":
+          description: "Ditolak (Murid tidak boleh)"
+        "404":
+          description: "Nilai tidak ditemukan"
+
+    delete:
+      tags: [Grade Service]
+      summary: "Delete Nilai (Admin Only)"
+      description: "Hanya Admin yang bisa menghapus data nilai."
+      security:
+        - BearerAuth: []
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: "Nilai berhasil dihapus"
+        "403":
+          description: "Ditolak (Bukan Admin)"
+        "404":
+          description: "Nilai tidak ditemukan"
+
+  /api/grades/student/{studentId}:
+    get:
+      tags: [Grade Service]
+      summary: "Get Semua Nilai per Murid (Wajib Login, Role-Based)"
+      description: |
+        - Murid: Hanya boleh akses 'studentId' miliknya sendiri.
+        - Admin/Pengajar: Boleh akses 'studentId' siapapun.
+      security:
+        - BearerAuth: []
+      parameters:
+        - { name: studentId, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: "Daftar nilai untuk siswa tsb"
+        "403":
+          description: "Ditolak (Murid coba intip nilai orang lain)"
+
+  /api/grades/course/{courseId}:
+    get:
+      tags: [Grade Service]
+      summary: "Get Semua Nilai per Kursus (Pengajar/Admin)"
+      description: "Hanya Pengajar/Admin yang bisa melihat semua nilai per-kursus."
+      security:
+        - BearerAuth: []
+      parameters:
+        - { name: courseId, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: "Daftar nilai untuk kursus tsb"
+        "403":
+          description: "Ditolak (Murid tidak boleh)"
+
+  /api/grades/teacher/{teacherId}:
+    get:
+      tags: [Grade Service]
+      summary: "Get Semua Nilai per Pengajar (Pengajar/Admin)"
+      description: "Hanya Pengajar/Admin yang bisa melihat semua nilai per-pengajar."
+      security:
+        - BearerAuth: []
+      parameters:
+        - { name: teacherId, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: "Daftar nilai untuk pengajar tsb"
+        "403":
+          description: "Ditolak (Murid tidak boleh)"
