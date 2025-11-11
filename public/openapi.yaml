@@ -110,25 +110,25 @@ components:
           $ref: "#/components/schemas/Schedule"
 
     Grade:
-    type: object
-    properties:
-      id: { type: integer, example: 1 }
-      studentID: { type: integer, example: 12 }
-      courseID: { type: integer, example: 7 }
-      teacherID: { type: integer, example: 3 }
-      grade: { type: string, example: "A-" }
-      remarks: { type: string, example: "Good job", nullable: true }
-      createAt: { type: string, format: "date-time" } # (Nama kolom di DB Fachri 'createAt')
+      type: object
+      properties:
+        id: { type: integer, example: 1 }
+        studentID: { type: integer, example: 12 }
+        courseID: { type: integer, example: 7 }
+        teacherID: { type: integer, example: 3 }
+        grade: { type: string, example: "A-" }
+        remarks: { type: string, example: "Good job", nullable: true }
+        createAt: { type: string, format: "date-time" }
   
-  GradeInput:
-    type: object
-    required: [studentID, courseID, teacherID, grade]
-    properties:
-      studentID: { type: integer, example: 12 }
-      courseID: { type: integer, example: 7 }
-      teacherID: { type: integer, example: 3 }
-      grade: { type: string, example: "A-" }
-      remarks: { type: string, example: "Good job" }
+    GradeInput:
+      type: object
+      required: [studentID, courseID, teacherID, grade]
+      properties:
+        studentID: { type: integer, example: 12 }
+        courseID: { type: integer, example: 7 }
+        teacherID: { type: integer, example: 3 }
+        grade: { type: string, example: "A-" }
+        remarks: { type: string, example: "Good job" }
 
 paths:
   /api/auth/register:
@@ -216,6 +216,59 @@ paths:
       responses:
         "200":
           description: "Logout berhasil"
+
+  /api/auth/change-password:
+    put:
+      tags:
+        - Auth Service
+      summary: "Ganti Password Sendiri (Wajib Login)"
+      description: "User mengganti password sendiri dengan memasukkan password lama."
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - old_password
+                - password
+                - password_confirmation
+              properties:
+                old_password:
+                  type: string
+                  format: password
+                  example: "oldpassword123"
+                  description: "Password lama user"
+                password:
+                  type: string
+                  format: password
+                  minLength: 8
+                  example: "newpassword123"
+                  description: "Password baru (minimal 8 karakter)"
+                password_confirmation:
+                  type: string
+                  format: password
+                  example: "newpassword123"
+                  description: "Konfirmasi password baru (harus sama dengan password)"
+      responses:
+        "200":
+          description: "Password berhasil diganti"
+          content:
+            application/json:
+              example:
+                status: "success"
+                message: "Password berhasil diganti"
+        "401":
+          description: "Token tidak valid"
+        "422":
+          description: "Validasi error atau password lama tidak sesuai"
+          content:
+            application/json:
+              example:
+                status: "error"
+                message: "Password lama tidak sesuai"
 
   /api/users:
     get:
@@ -371,6 +424,66 @@ paths:
         "404":
           description: "User tidak ditemukan"
 
+  /api/users/{id}/reset-password:
+    put:
+      tags:
+        - User Service (Admin)
+      summary: "Reset Password User (Admin Only)"
+      description: "Admin mereset password user lain tanpa perlu tahu password lama."
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: "User ID yang akan direset passwordnya"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - password
+                - password_confirmation
+              properties:
+                password:
+                  type: string
+                  format: password
+                  minLength: 8
+                  example: "newpassword123"
+                  description: "Password baru untuk user (minimal 8 karakter)"
+                password_confirmation:
+                  type: string
+                  format: password
+                  example: "newpassword123"
+                  description: "Konfirmasi password baru (harus sama dengan password)"
+      responses:
+        "200":
+          description: "Password user berhasil di-reset"
+          content:
+            application/json:
+              example:
+                status: "success"
+                message: "Password user berhasil di-reset"
+        "401":
+          description: "Token tidak valid"
+        "403":
+          description: "Akses ditolak (Bukan Admin)"
+        "404":
+          description: "User tidak ditemukan"
+        "422":
+          description: "Validasi error"
+          content:
+            application/json:
+              example:
+                status: "error"
+                message: "Validasi error"
+                errors:
+                  password: ["Password minimal 8 karakter"]
+
   /api/profile/me:
     get:
       tags:
@@ -437,20 +550,36 @@ paths:
       tags:
         - Course Service
       summary: "Get Semua Kursus (Wajib Login)"
-      description: "Mengambil daftar semua kursus (tanpa paginasi)."
+      description: "Mengambil daftar semua kursus (tanpa paginasi). Bisa difilter berdasarkan pengajar."
       security:
         - BearerAuth: []
+      parameters:
+        - name: teacher_id
+          in: query
+          description: "Filter kursus berdasarkan ID pengajar"
+          schema:
+            type: integer
+          example: 11
       responses:
         "200":
           description: "Daftar semua kursus (Array)"
           content:
             application/json:
               example:
-                - id: 1
-                  title: "Belajar Backend"
-                  teacher_id: 11
-                  materials: []
-                  schedule: {}
+                status: "success"
+                message: "Semua kursus berhasil diambil"
+                count: 2
+                data:
+                  - id: 1
+                    title: "Belajar Backend"
+                    teacher_id: 11
+                    materials: []
+                    schedule: {}
+                  - id: 2
+                    title: "Belajar Frontend"
+                    teacher_id: 11
+                    materials: []
+                    schedule: {}
 
     post:
       tags:

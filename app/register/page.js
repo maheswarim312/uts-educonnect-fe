@@ -12,12 +12,15 @@ import {
   ArrowRight,
   Sparkles,
   CheckCircle,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 
 export default function Register() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const { register, error } = useAuth();
 
@@ -169,15 +172,26 @@ export default function Register() {
                 Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+
                 <input
-                  type="password"
-                  placeholder="Minimal 6 karakter"
-                  className="w-full pl-11 pr-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all outline-none text-gray-800"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Minimal 8 karakter"
+                  className="w-full pl-11 pr-12 py-3 bg-white border-2 border-gray-200 rounded-xl
+               focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all
+               outline-none text-gray-800"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
                 />
+
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
               </div>
             </motion.div>
 

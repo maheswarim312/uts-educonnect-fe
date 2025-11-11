@@ -451,7 +451,7 @@ export default function TeacherCourseStudentsPage() {
                               value={editGradeValue}
                               onChange={(e) => setEditGradeValue(e.target.value)}
                               placeholder="A, B+, B, C+, dll"
-                              className="w-24 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              className="w-24 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
                               maxLength={5}
                             />
                           ) : (
@@ -475,7 +475,7 @@ export default function TeacherCourseStudentsPage() {
                               value={editRemarks}
                               onChange={(e) => setEditRemarks(e.target.value)}
                               placeholder="Catatan (opsional)"
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
                             />
                           ) : (
                             <span className="text-sm text-gray-600">

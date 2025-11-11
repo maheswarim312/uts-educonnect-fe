@@ -4,13 +4,22 @@ import { useState } from "react";
 import { useAuth } from "./context/AuthContext";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { BookOpen, Mail, Lock, ArrowRight, Sparkles } from "lucide-react";
+import {
+  BookOpen,
+  Mail,
+  Lock,
+  ArrowRight,
+  Sparkles,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 
 export default function Home() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   const { login, error } = useAuth();
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -136,14 +145,25 @@ export default function Home() {
               </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
-                  className="w-full pl-11 pr-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all outline-none text-gray-800"
+                  className="w-full pl-11 pr-12 py-3 bg-white border-2 border-gray-200 rounded-xl
+               focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all
+               outline-none text-gray-800"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
                 />
+
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
               </div>
             </motion.div>
 

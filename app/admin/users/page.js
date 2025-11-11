@@ -28,6 +28,8 @@ import {
   ChevronUp,
   ChevronDown,
   ChevronsUpDown,
+  KeyRound, 
+  Briefcase, 
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { Menu } from "@headlessui/react";
@@ -55,11 +57,17 @@ export default function AdminUsersPage() {
   const [paginationInfo, setPaginationInfo] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+  const [userStats, setUserStats] = useState(null);
+
   // State untuk modal edit
   const [editingUser, setEditingUser] = useState(null);
   const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [editRole, setEditRole] = useState("murid");
+
+  const [resettingUser, setResettingUser] = useState(null);
+  const [resetNewPassword, setResetNewPassword] = useState("");
+  const [resetConfirmPassword, setResetConfirmPassword] = useState("");
 
   // State untuk modal "View Profile"
   const [viewingUser, setViewingUser] = useState(null);
@@ -104,6 +112,10 @@ export default function AdminUsersPage() {
 
           setUsers(data.data);
           setPaginationInfo(data);
+
+          if (data.stats) {
+            setUserStats(data.stats);
+          }
 
           console.log("Data Users (Paginated):", data);
         } catch (err) {
@@ -175,6 +187,7 @@ export default function AdminUsersPage() {
       });
 
       setCurrentPage(1);
+      setRefreshTrigger((key) => key + 1); 
 
       setNewName("");
       setNewEmail("");
@@ -253,6 +266,13 @@ export default function AdminUsersPage() {
     setDataError(null);
   };
 
+  const openResetModal = (user) => {
+    setResettingUser(user);
+    setResetNewPassword("");
+    setResetConfirmPassword("");
+    setDataError(null);
+  };
+
   const handleUpdate = async (e) => {
     e.preventDefault();
     if (!editingUser) return;
@@ -276,6 +296,46 @@ export default function AdminUsersPage() {
       });
 
       setEditingUser(null);
+    } catch (err) {
+      toast.error(err.message, { id: loadingToast });
+    }
+  };
+
+  const handleAdminResetPassword = async (e) => {
+    e.preventDefault();
+    if (!resettingUser) return;
+
+    if (resetNewPassword.length < 8) {
+      toast.error("Password baru minimal harus 8 karakter.");
+      return;
+    }
+
+    if (resetNewPassword !== resetConfirmPassword) {
+      toast.error("Password baru dan konfirmasi tidak cocok.");
+      return;
+    }
+
+    const loadingToast = toast.loading(
+      `Resetting password for ${resettingUser.name}...`
+    );
+
+    try {
+      await apiFetch(`/api/users/${resettingUser.id}/reset-password`, {
+        method: "PUT",
+        body: JSON.stringify({
+          password: resetNewPassword,
+          password_confirmation: resetConfirmPassword,
+        }),
+      });
+
+      toast.success(
+        `Password for "${resettingUser.name}" has been reset!`,
+        {
+          id: loadingToast,
+        }
+      );
+
+      setResettingUser(null); // Tutup modal
     } catch (err) {
       toast.error(err.message, { id: loadingToast });
     }
@@ -382,7 +442,7 @@ export default function AdminUsersPage() {
               <div>
                 <p className="text-gray-600 text-sm mb-1">Total Users</p>
                 <p className="text-3xl font-bold text-gray-800">
-                  {users.length}
+                  {userStats ? userStats.total_users : "..."}
                 </p>
               </div>
               <Users className="w-12 h-12 text-blue-500" />
@@ -392,12 +452,12 @@ export default function AdminUsersPage() {
           <div className="bg-white/80 backdrop-blur-lg rounded-2xl p-6 border border-gray-200 shadow-lg">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm mb-1">Admins</p>
+                <p className="text-gray-600 text-sm mb-1">Teachers</p>
                 <p className="text-3xl font-bold text-gray-800">
-                  {users.filter((u) => u.role === "admin").length}
+                  {userStats ? userStats.total_pengajar : "..."}
                 </p>
               </div>
-              <Shield className="w-12 h-12 text-green-500" />
+              <Briefcase className="w-12 h-12 text-green-500" />
             </div>
           </div>
 
@@ -406,7 +466,7 @@ export default function AdminUsersPage() {
               <div>
                 <p className="text-gray-600 text-sm mb-1">Students</p>
                 <p className="text-3xl font-bold text-gray-800">
-                  {users.filter((u) => u.role === "murid").length}
+                  {userStats ? userStats.total_murid : "..."}
                 </p>
               </div>
               <BookOpen className="w-12 h-12 text-purple-500" />
@@ -725,6 +785,21 @@ export default function AdminUsersPage() {
                                       )}
                                     </Menu.Item>
                                     <Menu.Item>
+                                    {({ active }) => (
+                                      <button
+                                        onClick={() => openResetModal(u)}
+                                        className={`${
+                                          active
+                                            ? "bg-yellow-50 text-yellow-700"
+                                            : "text-gray-700"
+                                        } group flex w-full items-center rounded-lg p-3 text-sm transition-colors`}
+                                      >
+                                        <KeyRound className="w-5 h-5 mr-3" />
+                                        Reset Password
+                                      </button>
+                                    )}
+                                  </Menu.Item>
+                                    <Menu.Item>
                                       {({ active }) => (
                                         <button
                                           onClick={() =>
@@ -942,8 +1017,7 @@ export default function AdminUsersPage() {
 
                 <p className="text-sm text-gray-500">
                   <AlertCircle className="w-4 h-4 inline mr-1" />
-                  Password tidak bisa diubah dari sini. Jika perlu, hapus dan
-                  buat ulang.
+                  Password tidak bisa diubah dari sini. Gunakan opsi 'Reset Password' di menu.
                 </p>
 
                 <div className="flex justify-end gap-3 pt-4">
@@ -970,6 +1044,98 @@ export default function AdminUsersPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+       <AnimatePresence>
+      {resettingUser && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => setResettingUser(null)}
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-2xl shadow-xl w-full max-w-md"
+          >
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-yellow-100 rounded-lg">
+                  <KeyRound className="w-6 h-6 text-yellow-600" />
+                </div>
+                <h2 className="text-2xl font-bold text-gray-800">
+                  Reset Password: {resettingUser.name}
+                </h2>
+              </div>
+            </div>
+
+            <form
+              onSubmit={handleAdminResetPassword}
+              className="p-6 space-y-4"
+            >
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Password Baru
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="password"
+                    value={resetNewPassword}
+                    onChange={(e) => setResetNewPassword(e.target.value)}
+                    placeholder="Minimal 8 karakter"
+                    className="w-full pl-11 pr-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:border-yellow-500 focus:ring-4 focus:ring-yellow-100 transition-all outline-none text-gray-800"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Konfirmasi Password Baru
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="password"
+                    value={resetConfirmPassword}
+                    onChange={(e) =>
+                      setResetConfirmPassword(e.target.value)
+                    }
+                    placeholder="Ulangi password baru"
+                    className="w-full pl-11 pr-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:border-yellow-500 focus:ring-4 focus:ring-yellow-100 transition-all outline-none text-gray-800"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <motion.button
+                  type="button"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setResettingUser(null)}
+                  className="px-6 py-2 bg-gray-100 text-gray-700 rounded-xl font-semibold"
+                >
+                  Cancel
+                </motion.button>
+                <motion.button
+                  type="submit"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="px-6 py-2 bg-gradient-to-r from-yellow-500 to-orange-600 text-white rounded-xl font-semibold"
+                >
+                  Reset Password
+                </motion.button>
+              </div>
+            </form>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
 
       {/* View Profile Modal */}
       <AnimatePresence>

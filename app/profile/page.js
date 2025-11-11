@@ -6,7 +6,15 @@ import { useAuth } from "../context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, User, Shield, BookOpen, Briefcase } from "lucide-react"; 
+import {
+  ArrowLeft,
+  User,
+  Shield,
+  BookOpen,
+  Briefcase,
+  Lock,
+  KeyRound,
+} from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { motion } from "framer-motion";
 
@@ -18,6 +26,10 @@ export default function ProfilePage() {
   const [formData, setFormData] = useState({});
   const [profileLoading, setProfileLoading] = useState(true);
 
+  const [oldPassword, setOldPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
   useEffect(() => {
     if (loading) return;
     if (!user) {
@@ -26,13 +38,13 @@ export default function ProfilePage() {
   }, [user, loading, router]);
 
   useEffect(() => {
-    if (user && user.role !== 'admin') {
+    if (user && user.role !== "admin") {
       const fetchProfile = async () => {
         try {
           setProfileLoading(true);
           const data = await apiFetch("/api/profile/me");
           setProfileData(data.data);
-          setFormData(data.data || {}); 
+          setFormData(data.data || {});
         } catch (err) {
           if (err.message.includes("Profil belum diisi")) {
             setProfileData(null);
@@ -46,7 +58,7 @@ export default function ProfilePage() {
       };
       fetchProfile();
     } else if (user) {
-       setProfileLoading(false);
+      setProfileLoading(false);
     }
   }, [user, apiFetch]);
 
@@ -56,7 +68,7 @@ export default function ProfilePage() {
     try {
       const data = await apiFetch("/api/profile/me", {
         method: "PUT",
-        body: JSON.stringify(formData)
+        body: JSON.stringify(formData),
       });
       setProfileData(data.data);
       toast.success("Profil berhasil disimpan!", { id: loadingToast });
@@ -65,11 +77,44 @@ export default function ProfilePage() {
     }
   };
 
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+
+    if (newPassword.length < 8) {
+      toast.error("Password baru minimal harus 8 karakter.");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error("Password baru dan konfirmasi tidak cocok.");
+      return;
+    }
+
+    const loadingToast = toast.loading("Mengganti password...");
+    try {
+      await apiFetch("/api/auth/change-password", {
+        method: "PUT",
+        body: JSON.stringify({
+          old_password: oldPassword,
+          password: newPassword,
+          password_confirmation: confirmPassword,
+        }),
+      });
+
+      toast.success("Password berhasil diganti!", { id: loadingToast });
+      setOldPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err) {
+      toast.error(`Gagal: ${err.message}`, { id: loadingToast });
+    }
+  };
+
   const handleFormChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
@@ -117,53 +162,74 @@ export default function ProfilePage() {
                   : "bg-purple-100 text-purple-700"
               }`}
             >
-              {user.role === "admin" ? <Shield className="w-3 h-3" /> : (user.role === 'pengajar' ? <Briefcase className="w-3 h-3" /> : <BookOpen className="w-3 h-3" />)}
+              {user.role === "admin" ? (
+                <Shield className="w-3 h-3" />
+              ) : user.role === "pengajar" ? (
+                <Briefcase className="w-3 h-3" />
+              ) : (
+                <BookOpen className="w-3 h-3" />
+              )}
               {user.role}
             </span>
           </div>
         </div>
 
-        {user.role !== 'admin' ? (
+        {user.role !== "admin" ? (
           <div className="bg-white/80 backdrop-blur-lg rounded-2xl p-6 md:p-8 border border-gray-200 shadow-lg">
             <h2 className="text-2xl font-bold text-gray-800 mb-6">
-              {profileData ? 'Update Profil Kamu' : 'Lengkapi Profil Kamu'}
+              {profileData ? "Update Profil Kamu" : "Lengkapi Profil Kamu"}
             </h2>
 
             <form onSubmit={handleProfileUpdate}>
-              
-              {user.role === 'murid' && (
+              {user.role === "murid" && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">NIM</label>
-                    <input 
-                      type="text" name="nim" value={formData.nim || ''}
+                    <label className="block text-sm font-medium text-gray-700">
+                      NIM
+                    </label>
+                    <input
+                      type="text"
+                      name="nim"
+                      value={formData.nim || ""}
                       onChange={handleFormChange}
                       className="mt-1 block w-full border-2 border-gray-200 rounded-xl p-3 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition text-gray-800"
                       placeholder="Contoh: 123456"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Jurusan</label>
-                    <input 
-                      type="text" name="jurusan" value={formData.jurusan || ''}
+                    <label className="block text-sm font-medium text-gray-700">
+                      Jurusan
+                    </label>
+                    <input
+                      type="text"
+                      name="jurusan"
+                      value={formData.jurusan || ""}
                       onChange={handleFormChange}
                       className="mt-1 block w-full border-2 border-gray-200 rounded-xl p-3 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition text-gray-800"
                       placeholder="Contoh: Teknik Informatika"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Angkatan</label>
-                    <input 
-                      type="number" name="angkatan" value={formData.angkatan || ''}
+                    <label className="block text-sm font-medium text-gray-700">
+                      Angkatan
+                    </label>
+                    <input
+                      type="number"
+                      name="angkatan"
+                      value={formData.angkatan || ""}
                       onChange={handleFormChange}
                       className="mt-1 block w-full border-2 border-gray-200 rounded-xl p-3 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition text-gray-800"
                       placeholder="Contoh: 2023"
                     />
                   </div>
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700">Alamat</label>
-                    <input 
-                      type="text" name="alamat" value={formData.alamat || ''}
+                    <label className="block text-sm font-medium text-gray-700">
+                      Alamat
+                    </label>
+                    <input
+                      type="text"
+                      name="alamat"
+                      value={formData.alamat || ""}
                       onChange={handleFormChange}
                       className="mt-1 block w-full border-2 border-gray-200 rounded-xl p-3 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition text-gray-800"
                       placeholder="Contoh: Jl. Edukasi No. 1"
@@ -172,30 +238,42 @@ export default function ProfilePage() {
                 </div>
               )}
 
-              {user.role === 'pengajar' && (
+              {user.role === "pengajar" && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">NIP</label>
-                    <input 
-                      type="text" name="nip" value={formData.nip || ''}
+                    <label className="block text-sm font-medium text-gray-700">
+                      NIP
+                    </label>
+                    <input
+                      type="text"
+                      name="nip"
+                      value={formData.nip || ""}
                       onChange={handleFormChange}
                       className="mt-1 block w-full border-2 border-gray-200 rounded-xl p-3 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition text-gray-800"
                       placeholder="Contoh: 987654"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Bidang Keahlian</label>
-                    <input 
-                      type="text" name="bidang" value={formData.bidang || ''}
+                    <label className="block text-sm font-medium text-gray-700">
+                      Bidang Keahlian
+                    </label>
+                    <input
+                      type="text"
+                      name="bidang"
+                      value={formData.bidang || ""}
                       onChange={handleFormChange}
                       className="mt-1 block w-full border-2 border-gray-200 rounded-xl p-3 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition text-gray-800"
                       placeholder="Contoh: Rekayasa Perangkat Lunak"
                     />
                   </div>
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700">Alamat</label>
-                    <input 
-                      type="text" name="alamat" value={formData.alamat || ''}
+                    <label className="block text-sm font-medium text-gray-700">
+                      Alamat
+                    </label>
+                    <input
+                      type="text"
+                      name="alamat"
+                      value={formData.alamat || ""}
                       onChange={handleFormChange}
                       className="mt-1 block w-full border-2 border-gray-200 rounded-xl p-3 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition text-gray-800"
                       placeholder="Contoh: Jl. Edukasi No. 1"
@@ -203,9 +281,9 @@ export default function ProfilePage() {
                   </div>
                 </div>
               )}
-              
+
               <div className="mt-6 text-right">
-                <motion.button 
+                <motion.button
                   type="submit"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
@@ -214,20 +292,103 @@ export default function ProfilePage() {
                   Simpan Profil
                 </motion.button>
               </div>
-
             </form>
           </div>
         ) : (
           <div className="bg-white/80 backdrop-blur-lg rounded-2xl p-6 md:p-8 border border-gray-200 shadow-lg">
-            <h2 className="text-2xl font-bold text-gray-800">
-              Profil Admin
-            </h2>
+            <h2 className="text-2xl font-bold text-gray-800">Profil Admin</h2>
             <p className="text-gray-600 mt-4">
-              Admin tidak memiliki profil data diri (NIM/NIP).
-              Silakan kelola data user melalui <Link href="/admin/users" className="text-blue-600 font-semibold hover:underline">Admin Panel</Link>.
+              Admin tidak memiliki profil data diri (NIM/NIP). Silakan kelola
+              data user melalui{" "}
+              <Link
+                href="/admin/users"
+                className="text-blue-600 font-semibold hover:underline"
+              >
+                Admin Panel
+              </Link>
+              .
             </p>
           </div>
         )}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-white/80 backdrop-blur-lg rounded-2xl p-6 md:p-8 border border-gray-200 shadow-lg mt-8"
+        >
+          <h2 className="text-2xl font-bold text-gray-800 mb-6">
+            Ganti Password Anda
+          </h2>
+          <form onSubmit={handleChangePassword} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Password Lama
+              </label>
+              <div className="relative mt-1">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+                  <Lock className="w-5 h-5 text-gray-400" />
+                </span>
+                <input
+                  type="password"
+                  value={oldPassword}
+                  onChange={(e) => setOldPassword(e.target.value)}
+                  required
+                  className="pl-10 block w-full border-2 border-gray-200 rounded-xl p-3 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition text-gray-800"
+                  placeholder="Masukkan password Anda saat ini"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Password Baru
+              </label>
+              <div className="relative mt-1">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+                  <KeyRound className="w-5 h-5 text-gray-400" />
+                </span>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required
+                  className="pl-10 block w-full border-2 border-gray-200 rounded-xl p-3 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition text-gray-800"
+                  placeholder="Minimal 8 karakter"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Konfirmasi Password Baru
+              </label>
+              <div className="relative mt-1">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+                  <KeyRound className="w-5 h-5 text-gray-400" />
+                </span>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  className="pl-10 block w-full border-2 border-gray-200 rounded-xl p-3 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition text-gray-800"
+                  placeholder="Ulangi password baru"
+                />
+              </div>
+            </div>
+
+            <div className="mt-6 text-right">
+              <motion.button
+                type="submit"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 px-6 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
+              >
+                Ganti Password
+              </motion.button>
+            </div>
+          </form>
+        </motion.div>
       </div>
     </main>
   );
