@@ -315,8 +315,10 @@ export default function CourseDetailPage() {
                         <CalendarDays className="w-4 h-4" /> Jadwal
                       </span>
                       <span className="font-semibold text-gray-800">
-                        {course.schedule.day},{" "}
-                        {course.schedule.time.substring(0, 5)}
+                        {course.schedule.day ?? "TBA"},{" "}
+                        {course.schedule.time
+                          ? course.schedule.time.substring(0, 5)
+                          : "TBA"}
                       </span>
                     </div>
                   )}
