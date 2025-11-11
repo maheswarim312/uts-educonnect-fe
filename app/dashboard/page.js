@@ -20,6 +20,7 @@ import {
   Sparkles,
   GraduationCap,
   BarChart,
+  ListOrdered,
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 
@@ -156,6 +157,16 @@ export default function DashboardPage() {
                 >
                   <Shield className="w-4 h-4" />
                   Admin Panel
+                </Link>
+              )}
+            
+              {(user.role === "admin" || user.role === "pengajar") && (
+                <Link
+                  href="/admin/courses_admin" // Ganti dengan URL halaman manajemen kursus yang kamu buat
+                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg font-semibold hover:shadow-lg transition-all"
+                >
+                  <ListOrdered className="w-4 h-4" />
+                  Courses
                 </Link>
               )}
               
