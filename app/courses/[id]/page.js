@@ -1,12 +1,8 @@
-// File: app/courses/[id]/page.js
-// Halaman Detail Kursus (Integrasi 3 Service)
-
 "use client";
 
-// 1. Import semua "bahan"
 import { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { useRouter, useParams } from "next/navigation"; // Import 'useParams'
+import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -30,10 +26,9 @@ import toast, { Toaster } from "react-hot-toast";
 export default function CourseDetailPage() {
   const { user, loading: authLoading, apiFetch } = useAuth();
   const router = useRouter();
-  const params = useParams(); // Hook untuk ambil 'id' dari URL
-  const { id } = params; // Ini adalah ID kursus, cth: "5"
+  const params = useParams();
+  const { id } = params;
 
-  // 2. Siapkan "Memori" (State)
   const [course, setCourse] = useState(null);
   const [enrollmentStatus, setEnrollmentStatus] = useState({
     isEnrolled: false,
@@ -43,25 +38,19 @@ export default function CourseDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // 3. "OTAK" EAI: useEffect Paling Canggih
   useEffect(() => {
     if (user && id) {
-      // Hanya jalan jika user ADA dan ID kursus ADA
       const fetchAllCourseData = async () => {
         try {
           setIsLoading(true);
           setError(null);
 
-          // --- PANGGILAN API #1 (Ke Course Service) ---
-          // Ambil data utama: Judul, Deskripsi, Pengajar, Materi, Jadwal
           const courseRes = await apiFetch(`/api/courses/${id}`);
           if (courseRes.status !== "success") {
             throw new Error(courseRes.message || "Course tidak ditemukan");
           }
           const courseData = courseRes.data;
 
-          // --- PANGGILAN API #2 (Ke Enrollment Service) ---
-          // (Idemu!) Ambil jumlah total 'students'
           let studentCount = 0;
           try {
             const enrollCountRes = await apiFetch(
@@ -74,28 +63,21 @@ export default function CourseDetailPage() {
             /* Biarkan 0 jika error */
           }
 
-          // --- PANGGILAN API #3 (Ke Enrollment Service) ---
-          // Cek status ENROLLMENT untuk user yang login
           const myEnrollmentsRes = await apiFetch("/api/enrollments");
           const myEnrollments = myEnrollmentsRes.data || [];
           const myEnrollment = myEnrollments.find((e) => e.course_id == id);
           const isEnrolled = !!myEnrollment; // true atau false
 
-          // --- PANGGILAN API #4 (Ke Grade Service) ---
-          // HANYA JALAN JIKA SUDAH ENROLL
           let myGrade = null;
           if (isEnrolled) {
             try {
               const gradeRes = await apiFetch(`/api/grades?course_id=${id}`);
               if (gradeRes.status === "success" && gradeRes.data.length > 0) {
-                myGrade = gradeRes.data[0].grade; // Cth: "A-"
+                myGrade = gradeRes.data[0].grade;
               }
-            } catch (e) {
-              /* Biarkan null jika error */
-            }
+            } catch (e) {}
           }
 
-          // 4. Simpan semua hasil ke "Memori" (State)
           setCourse(courseData);
           setStudentCount(studentCount);
           setEnrollmentStatus({ isEnrolled: isEnrolled, grade: myGrade });
@@ -109,13 +91,11 @@ export default function CourseDetailPage() {
 
       fetchAllCourseData();
     }
-  }, [user, id, apiFetch]); // Jalankan ulang jika user atau ID berubah
+  }, [user, id, apiFetch]);
 
-  // 5. Fungsi "Enroll Now" (BARU)
   const handleEnroll = async () => {
     const loadingToast = toast.loading("Mendaftarkan ke kursus...");
     try {
-      // (Kita 'hardcode' student_id = user.id, karena "Satpam" kita sudah "pintar")
       const res = await apiFetch("/api/enrollments", {
         method: "POST",
         body: JSON.stringify({
@@ -137,7 +117,6 @@ export default function CourseDetailPage() {
     }
   };
 
-  // 6. Tampilan "Loading"
   if (authLoading || isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">

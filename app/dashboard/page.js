@@ -34,18 +34,6 @@ export default function DashboardPage() {
   const [coursesLoading, setCoursesLoading] = useState(true);
   const [coursesError, setCoursesError] = useState(null);
 
-  const stats = [
-    { label: "Courses Enrolled", value: "4", icon: BookOpen, color: "blue" },
-    { label: "Hours Learned", value: "27", icon: Clock, color: "purple" },
-    { label: "Certificates", value: "2", icon: Award, color: "yellow" },
-    {
-      label: "Course Progress",
-      value: "31%",
-      icon: TrendingUp,
-      color: "green",
-    },
-  ];
-
   useEffect(() => {
     if (loading) return;
     if (!user) {
@@ -237,36 +225,6 @@ export default function DashboardPage() {
           </p>
         </motion.div>
 
-        {/* Stats Grid */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8"
-        >
-          {stats.map((stat, index) => (
-            <motion.div
-              key={stat.label}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.3 + index * 0.1 }}
-              whileHover={{ scale: 1.05, y: -5 }}
-              className="bg-white/80 backdrop-blur-lg rounded-2xl p-6 border border-gray-200 shadow-lg"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className={`p-3 bg-${stat.color}-100 rounded-xl`}>
-                  <stat.icon className={`w-6 h-6 text-${stat.color}-600`} />
-                </div>
-                <TrendingUp className="w-5 h-5 text-green-500" />
-              </div>
-              <p className="text-2xl font-bold text-gray-800 mb-1">
-                {stat.value}
-              </p>
-              <p className="text-sm text-gray-600">{stat.label}</p>
-            </motion.div>
-          ))}
-        </motion.div>
-
         {/* Courses Section */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -378,38 +336,6 @@ export default function DashboardPage() {
               </motion.div>
             ))}
           </div>
-        </motion.div>
-
-        {/* Learning Analytics (Optional) */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.9 }}
-          className="mt-8 bg-white/80 backdrop-blur-lg rounded-2xl p-6 border border-gray-200 shadow-lg"
-        >
-          <div className="flex items-center gap-3 mb-4">
-            <BarChart className="w-6 h-6 text-blue-600" />
-            <h3 className="text-xl font-bold text-gray-800">
-              This Week's Activity
-            </h3>
-          </div>
-          <div className="grid grid-cols-7 gap-2">
-            {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day, i) => (
-              <div key={day} className="text-center">
-                <div className="text-xs text-gray-600 mb-2">{day}</div>
-                <motion.div
-                  initial={{ height: 0 }}
-                  animate={{ height: `${Math.random() * 80 + 20}px` }}
-                  transition={{ delay: 1 + i * 0.1 }}
-                  className="bg-gradient-to-t from-blue-500 to-purple-600 rounded-lg mx-auto"
-                  style={{ width: "100%" }}
-                />
-              </div>
-            ))}
-          </div>
-          <p className="text-center text-gray-600 text-sm mt-4">
-            Keep up the great work! 🔥 You've been consistent this week.
-          </p>
         </motion.div>
       </div>
     </div>

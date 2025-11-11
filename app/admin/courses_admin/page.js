@@ -1,35 +1,27 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Shield,
-  Users,
-  UserPlus,
   Trash2,
   Edit,
   Search,
   LogOut,
   ArrowLeft,
   BookOpen,
-  Mail,
-  Lock,
-  User,
-  Crown,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
   Eye,
   MoreVertical,
-  Filter,
   ChevronUp,
   ChevronDown,
   ChevronsUpDown,
-  ListOrdered, 
+  ListOrdered,
   Calendar,
+  AlertCircle,
+  CheckCircle,
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { Menu } from "@headlessui/react";
@@ -38,43 +30,37 @@ export default function AdminCoursesPage() {
   const { user, token, loading, logout, apiFetch } = useAuth();
   const router = useRouter();
 
-  // STATE KURSUS: Inisialisasi sebagai array kosong, dan pastikan tidak ada undefined
   const [courses, setCourses] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [dataError, setDataError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // STATE BARU: Untuk menyimpan daftar Pengajar untuk dropdown
   const [instructors, setInstructors] = useState([]);
   const [instructorsLoading, setInstructorsLoading] = useState(false);
 
-  // Form states
   const [newTitle, setNewTitle] = useState("");
   const [newDescription, setNewDescription] = useState("");
   const [newInstructorId, setNewInstructorId] = useState("");
-  const [newStatus, setNewStatus] = useState("draft");
+  const [newThumbnail, setNewThumbnail] = useState("");
+  const [newCategory, setNewCategory] = useState("General");
 
-  // State untuk kontrol Server-Side
-  const [statusFilter, setStatusFilter] = useState("all");
   const [sortConfig, setSortConfig] = useState({ key: "id", direction: "asc" });
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage] = useState(10);
   const [paginationInfo, setPaginationInfo] = useState(null);
 
-  // State untuk modal edit
   const [editingCourse, setEditingCourse] = useState(null);
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editInstructorId, setEditInstructorId] = useState("");
-  const [editStatus, setEditStatus] = useState("");
+  const [editThumbnail, setEditThumbnail] = useState("");
+  const [editCategory, setEditCategory] = useState("");
 
-  // State untuk modal "View Details"
   const [viewingCourse, setViewingCourse] = useState(null);
   const [detailData, setDetailData] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState(null);
 
-  // Guard: Check if user is Admin or Pengajar
   useEffect(() => {
     if (loading) return;
 
@@ -91,14 +77,13 @@ export default function AdminCoursesPage() {
     }
   }, [user, loading, router]);
 
-  // Fetch INSTRUCTORS data (Data Pengajar untuk Dropdown)
   useEffect(() => {
     const fetchInstructors = async () => {
       try {
         setInstructorsLoading(true);
         const data = await apiFetch("/api/users?role=pengajar&per_page=999");
-        setInstructors(data.data);
-        if (data.data.length > 0) {
+        setInstructors(data.data || []);
+        if (data.data && data.data.length > 0) {
           setNewInstructorId(data.data[0].id);
         }
       } catch (err) {
@@ -112,8 +97,14 @@ export default function AdminCoursesPage() {
     }
   }, [user, apiFetch]);
 
-  // Fetch COURSES data (Menggantikan Fetch Users)
   useEffect(() => {
+    if (instructors.length === 0) {
+      if (user && (user.role === "admin" || user.role === "pengajar")) {
+        setDataLoading(false);
+      }
+      return;
+    }
+
     if (user && (user.role === "admin" || user.role === "pengajar")) {
       const fetchCourses = async () => {
         try {
@@ -123,21 +114,18 @@ export default function AdminCoursesPage() {
           const params = new URLSearchParams();
           params.append("page", currentPage);
           params.append("per_page", itemsPerPage);
-          params.append("status", statusFilter);
           params.append("search", searchQuery);
           params.append("sort_by", sortConfig.key);
           params.append("sort_direction", sortConfig.direction);
-          
+
           if (user.role === "pengajar") {
-              params.append("instructor_id", user.id);
+            params.append("teacher_id", user.id);
           }
 
           const data = await apiFetch(`/api/courses?${params.toString()}`);
 
-          // *PENTING*: Pastikan data.data adalah array atau setCourses([])
-          setCourses(data.data || []); 
+          setCourses(data.data || []);
           setPaginationInfo(data);
-
         } catch (err) {
           setDataError(err.message);
           toast.error(`Failed to load courses: ${err.message}`);
@@ -148,9 +136,16 @@ export default function AdminCoursesPage() {
 
       fetchCourses();
     }
-  }, [user, apiFetch, currentPage, statusFilter, sortConfig, searchQuery]);
+  }, [
+    user,
+    apiFetch,
+    currentPage,
+    sortConfig,
+    searchQuery,
+    instructors,
+    itemsPerPage,
+  ]);
 
-  // Fetch Course Details (Menggantikan Fetch Profile Details)
   useEffect(() => {
     if (viewingCourse) {
       const fetchCourseDetails = async () => {
@@ -174,7 +169,6 @@ export default function AdminCoursesPage() {
     }
   }, [viewingCourse, apiFetch]);
 
-  // Create new course
   const handleCreate = async (e) => {
     e.preventDefault();
 
@@ -193,16 +187,18 @@ export default function AdminCoursesPage() {
         body: JSON.stringify({
           title: newTitle,
           description: newDescription,
-          instructor_id: newInstructorId,
-          status: newStatus,
+          teacher_id: newInstructorId,
+          thumbnail: newThumbnail,
+          category: newCategory,
         }),
       });
 
       setCourses((prev) => [newCourse.data, ...prev]);
 
-      // Reset form states
       setNewTitle("");
       setNewDescription("");
+      setNewThumbnail("");
+      setNewCategory("General");
 
       toast.success(`Course "${newCourse.data.title}" created successfully!`, {
         id: loadingToast,
@@ -212,9 +208,10 @@ export default function AdminCoursesPage() {
     }
   };
 
-  // Delete course
   const handleDelete = async (courseId, courseTitle) => {
-    const confirmed = confirm(`Are you sure you want to delete course "${courseTitle}"?`);
+    const confirmed = confirm(
+      `Are you sure you want to delete course "${courseTitle}"?`
+    );
     if (!confirmed) return;
 
     const loadingToast = toast.loading(`Deleting ${courseTitle}...`);
@@ -235,7 +232,6 @@ export default function AdminCoursesPage() {
     }
   };
 
-  // Handler saat klik header tabel (untuk sorting)
   const requestSort = (key) => {
     let direction = "asc";
     if (sortConfig.key === key && sortConfig.direction === "asc") {
@@ -245,7 +241,6 @@ export default function AdminCoursesPage() {
     setCurrentPage(1);
   };
 
-  // Komponen reusable untuk sorting icon
   const SortIcon = ({ columnKey }) => {
     if (sortConfig.key !== columnKey) {
       return <ChevronsUpDown className="w-4 h-4 text-gray-400" />;
@@ -257,24 +252,17 @@ export default function AdminCoursesPage() {
     );
   };
 
-  // Handler saat ganti halaman
   const handlePageChange = (page) => {
     setCurrentPage(page);
   };
 
-  // Handler saat ganti filter
-  const handleFilterChange = (e) => {
-    setStatusFilter(e.target.value);
-    setCurrentPage(1);
-  };
-
-  // Edit Modal
   const openEditModal = (course) => {
     setEditingCourse(course);
     setEditTitle(course.title);
-    setEditDescription(course.description);
-    setEditInstructorId(course.instructor_id);
-    setEditStatus(course.status);
+    setEditDescription(course.description || "");
+    setEditInstructorId(course.teacher_id);
+    setEditThumbnail(course.thumbnail || "");
+    setEditCategory(course.category || "General");
     setDataError(null);
   };
 
@@ -292,14 +280,17 @@ export default function AdminCoursesPage() {
           body: JSON.stringify({
             title: editTitle,
             description: editDescription,
-            instructor_id: editInstructorId,
-            status: editStatus,
+            teacher_id: editInstructorId,
+            thumbnail: editThumbnail,
+            category: editCategory,
           }),
         }
       );
 
       setCourses((prev) =>
-        prev.map((c) => (c.id === editingCourse.id ? updatedCourseData.data : c))
+        prev.map((c) =>
+          c.id === editingCourse.id ? updatedCourseData.data : c
+        )
       );
 
       toast.success(`Course "${updatedCourseData.data.title}" updated!`, {
@@ -319,7 +310,6 @@ export default function AdminCoursesPage() {
     }, 500);
   };
 
-  // Loading state
   if (loading || !user || (user.role !== "admin" && user.role !== "pengajar")) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
@@ -339,23 +329,20 @@ export default function AdminCoursesPage() {
     );
   }
 
-  // Helper untuk mendapatkan nama Pengajar
-  const getInstructorName = (instructorId) => {
-    const instructor = instructors.find(i => i.id === instructorId);
+  const getInstructorName = (teacherId) => {
+    const instructor = instructors.find((i) => i.id === teacherId);
     return instructor ? instructor.name : "N/A";
   };
-  
-  // PERBAIKAN PENTING DI SINI: Gunakan 'courses || []' untuk mencegah error undefined
+
   const safeCourses = courses || [];
-  const totalCourses = paginationInfo ? paginationInfo.total : safeCourses.length;
-  const activeCourses = safeCourses.filter(c => c.status === 'published').length;
-  const draftCourses = safeCourses.filter(c => c.status === 'draft').length;
+  const totalCourses = paginationInfo
+    ? paginationInfo.total
+    : safeCourses.length;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
       <Toaster position="top-center" />
 
-      {/* Top Navigation */}
       <motion.nav
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -379,7 +366,7 @@ export default function AdminCoursesPage() {
               </div>
               <div>
                 <span className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                  {user.role === 'admin' ? "Admin Panel" : "Teacher Panel"}
+                  {user.role === "admin" ? "Admin Panel" : "Teacher Panel"}
                 </span>
               </div>
             </div>
@@ -396,7 +383,6 @@ export default function AdminCoursesPage() {
       </motion.nav>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header (Course Management) */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -409,18 +395,16 @@ export default function AdminCoursesPage() {
             </h1>
           </div>
           <p className="text-gray-600">
-            Manage all courses in the system - Create, view, and delete accounts, materials, and schedules.
+            Manage all courses in the system - Create, view, and delete courses.
           </p>
         </motion.div>
 
-        {/* Stats (Course Stats) */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8"
+          className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8"
         >
-          {/* Total Courses */}
           <div className="bg-white/80 backdrop-blur-lg rounded-2xl p-6 border border-gray-200 shadow-lg">
             <div className="flex items-center justify-between">
               <div>
@@ -432,36 +416,21 @@ export default function AdminCoursesPage() {
               <ListOrdered className="w-12 h-12 text-indigo-500" />
             </div>
           </div>
-          
-          {/* Active Courses */}
+
           <div className="bg-white/80 backdrop-blur-lg rounded-2xl p-6 border border-gray-200 shadow-lg">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm mb-1">Active Courses</p>
+                <p className="text-gray-600 text-sm mb-1">Total Instructors</p>
                 <p className="text-3xl font-bold text-gray-800">
-                  {activeCourses}
+                  {instructors.length}
                 </p>
               </div>
               <CheckCircle className="w-12 h-12 text-green-500" />
             </div>
           </div>
-
-          {/* Draft Courses */}
-          <div className="bg-white/80 backdrop-blur-lg rounded-2xl p-6 border border-gray-200 shadow-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm mb-1">Draft Courses</p>
-                <p className="text-3xl font-bold text-gray-800">
-                  {draftCourses}
-                </p>
-              </div>
-              <XCircle className="w-12 h-12 text-yellow-500" />
-            </div>
-          </div>
         </motion.div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Create Course Form */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -477,12 +446,11 @@ export default function AdminCoursesPage() {
                   Create Course
                 </h2>
               </div>
-              
+
               {instructorsLoading ? (
-                  <p className="text-gray-500">Loading instructors...</p>
+                <p className="text-gray-500">Loading instructors...</p>
               ) : (
                 <form onSubmit={handleCreate} className="space-y-4">
-                  {/* Course Title */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Course Title
@@ -498,8 +466,6 @@ export default function AdminCoursesPage() {
                       />
                     </div>
                   </div>
-  
-                  {/* Course Description */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Description
@@ -513,8 +479,30 @@ export default function AdminCoursesPage() {
                       required
                     />
                   </div>
-  
-                  {/* Instructor (Pengajar) Dropdown */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                     Thumbnail URL
+                    </label>
+                    <input
+                      type="text"
+                      value={newThumbnail}
+                      onChange={(e) => setNewThumbnail(e.target.value)}
+                      placeholder="https://image-url.com/foto.png"
+                      className="w-full pl-4 pr-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all outline-none text-gray-800"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Category                    
+                      </label>
+                    <input
+                      type="text"
+                      value={newCategory}
+                      onChange={(e) => setNewCategory(e.target.value)}
+                      placeholder="Programming"
+                      className="w-full pl-4 pr-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all outline-none text-gray-800"
+                    />
+                  </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Instructor
@@ -526,28 +514,12 @@ export default function AdminCoursesPage() {
                       required
                     >
                       {instructors.map((i) => (
-                          <option key={i.id} value={i.id}>
-                              {i.name} ({i.role})
-                          </option>
+                        <option key={i.id} value={i.id}>
+                          {i.name}
+                        </option>
                       ))}
                     </select>
                   </div>
-                  
-                  {/* Course Status */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Course Status
-                    </label>
-                    <select
-                      value={newStatus}
-                      onChange={(e) => setNewStatus(e.target.value)}
-                      className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all outline-none text-gray-800"
-                    >
-                      <option value="draft">Draft (Not Visible)</option>
-                      <option value="published">Published (Active)</option>
-                    </select>
-                  </div>
-  
                   <motion.button
                     type="submit"
                     whileHover={{ scale: 1.02 }}
@@ -562,7 +534,6 @@ export default function AdminCoursesPage() {
             </div>
           </motion.div>
 
-          {/* Courses Table */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -581,10 +552,8 @@ export default function AdminCoursesPage() {
                 </div>
               </div>
 
-              {/* Search & Filter Bar */}
-              <div className="flex flex-col sm:flex-row gap-4 mb-6">
-                {/* Search Bar */}
-                <div className="relative flex-1">
+              <div className="mb-6">
+                <div className="relative">
                   <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
                     type="text"
@@ -597,24 +566,8 @@ export default function AdminCoursesPage() {
                     className="w-full pl-12 pr-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all outline-none text-gray-800"
                   />
                 </div>
-                
-                {/* Filter by Status */}
-                <div className="relative sm:w-64">
-                  <Filter className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-                  <select
-                    value={statusFilter}
-                    onChange={handleFilterChange}
-                    className="w-full pl-12 pr-10 py-3 bg-white border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all outline-none text-gray-800 appearance-none cursor-pointer"
-                  >
-                    <option value="all">All Status</option>
-                    <option value="published">✅ Published</option>
-                    <option value="draft">📝 Draft</option>
-                  </select>
-                  <ChevronDown className="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-                </div>
               </div>
 
-              {/* Loading State */}
               {dataLoading && (
                 <div className="text-center py-12">
                   <motion.div
@@ -630,17 +583,15 @@ export default function AdminCoursesPage() {
                 </div>
               )}
 
-              {/* Error State */}
               {dataError && (
                 <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg mb-6">
                   <div className="flex items-center gap-2">
-                    <XCircle className="w-5 h-5 text-red-500" />
+                    <AlertCircle className="w-5 h-5 text-red-500" />
                     <p className="text-red-700 font-medium">{dataError}</p>
                   </div>
                 </div>
               )}
 
-              {/* Courses Table */}
               {!dataLoading && !dataError && (
                 <div className="overflow-x-auto">
                   <table className="w-full">
@@ -664,23 +615,8 @@ export default function AdminCoursesPage() {
                             <SortIcon columnKey="title" />
                           </div>
                         </th>
-                        <th
-                          className="text-left p-4 text-gray-600 font-semibold cursor-pointer hover:bg-gray-50 transition-colors group"
-                          onClick={() => requestSort("instructor_id")}
-                        >
-                          <div className="flex items-center gap-2">
-                            Instructor
-                            <SortIcon columnKey="instructor_id" />
-                          </div>
-                        </th>
-                        <th
-                          className="text-left p-4 text-gray-600 font-semibold cursor-pointer hover:bg-gray-50 transition-colors group"
-                          onClick={() => requestSort("status")}
-                        >
-                          <div className="flex items-center gap-2">
-                            Status
-                            <SortIcon columnKey="status" />
-                          </div>
+                        <th className="text-left p-4 text-gray-600 font-semibold">
+                          Instructor
                         </th>
                         <th className="text-left p-4 text-gray-600 font-semibold">
                           Action
@@ -704,20 +640,8 @@ export default function AdminCoursesPage() {
                                 {c.title}
                               </span>
                             </td>
-                            {/* Menampilkan nama pengajar berdasarkan ID */}
                             <td className="p-4 text-gray-600 font-medium">
-                                {getInstructorName(c.instructor_id)}
-                            </td>
-                            <td className="p-4">
-                              <span
-                                className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                                  c.status === "published"
-                                    ? "bg-green-100 text-green-700"
-                                    : "bg-yellow-100 text-yellow-700"
-                                }`}
-                              >
-                                {c.status}
-                              </span>
+                              {getInstructorName(c.teacher_id)}
                             </td>
                             <td className="p-4">
                               <Menu
@@ -811,7 +735,6 @@ export default function AdminCoursesPage() {
                     </tbody>
                   </table>
 
-                  {/* Empty State */}
                   {safeCourses.length === 0 && (
                     <div className="text-center py-12">
                       <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
@@ -828,19 +751,25 @@ export default function AdminCoursesPage() {
                 </div>
               )}
 
-              {/* Pagination Controls */}
               {paginationInfo && paginationInfo.last_page > 1 && (
                 <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-6 pt-6 border-t border-gray-200">
-                  {/* Info Text */}
                   <div className="text-sm text-gray-600">
-                    Showing <span className="font-semibold text-gray-800">{paginationInfo.from || 0}</span> to{" "}
-                    <span className="font-semibold text-gray-800">{paginationInfo.to || 0}</span> of{" "}
-                    <span className="font-semibold text-gray-800">{paginationInfo.total || 0}</span> courses
+                    Showing{" "}
+                    <span className="font-semibold text-gray-800">
+                      {paginationInfo.from || 0}
+                    </span>{" "}
+                    to{" "}
+                    <span className="font-semibold text-gray-800">
+                      {paginationInfo.to || 0}
+                    </span>{" "}
+                    of{" "}
+                    <span className="font-semibold text-gray-800">
+                      {paginationInfo.total || 0}
+                    </span>{" "}
+                    courses
                   </div>
 
-                  {/* Pagination Buttons */}
                   <div className="flex items-center gap-2">
-                    {/* Previous Button */}
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
@@ -855,43 +784,33 @@ export default function AdminCoursesPage() {
                       Previous
                     </motion.button>
 
-                    {/* Page Numbers */}
                     <div className="flex items-center gap-1">
-                      {Array.from({ length: paginationInfo.last_page }, (_, i) => i + 1)
-                        .filter(page => {
-                          return (
-                            page === 1 ||
-                            page === paginationInfo.last_page ||
-                            (page >= currentPage - 1 && page <= currentPage + 1)
-                          );
-                        })
-                        .map((page, index, array) => {
-                          const prevPage = array[index - 1];
-                          const showEllipsis = prevPage && page - prevPage > 1;
-
-                          return (
-                            <div key={page} className="flex items-center gap-1">
-                              {showEllipsis && (
-                                <span className="px-2 text-gray-400">...</span>
-                              )}
-                              <motion.button
-                                whileHover={{ scale: 1.1 }}
-                                whileTap={{ scale: 0.9 }}
-                                onClick={() => handlePageChange(page)}
-                                className={`w-10 h-10 rounded-lg font-semibold transition-all ${
-                                  currentPage === page
-                                    ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg"
-                                    : "bg-white border-2 border-gray-200 text-gray-700 hover:border-purple-500 hover:text-purple-600"
-                                }`}
-                              >
-                                {page}
-                              </motion.button>
-                            </div>
-                          );
-                        })}
+                      {Array.from(
+                        { length: paginationInfo.last_page },
+                        (_, i) => i + 1
+                      ).filter((page) => {
+                        return (
+                          <div key={page} className="flex items-center gap-1">
+                            {showEllipsis && (
+                              <span className="px-2 text-gray-400">...</span>
+                            )}
+                            <motion.button
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.9 }}
+                              onClick={() => handlePageChange(page)}
+                              className={`w-10 h-10 rounded-lg font-semibold transition-all ${
+                                currentPage === page
+                                  ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg"
+                                  : "bg-white border-2 border-gray-200 text-gray-700 hover:border-purple-500 hover:text-purple-600"
+                              }`}
+                            >
+                              {page}
+                            </motion.button>
+                          </div>
+                        );
+                      })}
                     </div>
 
-                    {/* Next Button */}
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
@@ -913,7 +832,6 @@ export default function AdminCoursesPage() {
         </div>
       </div>
 
-      {/* Edit Course Modal */}
       <AnimatePresence>
         {editingCourse && (
           <motion.div
@@ -942,7 +860,6 @@ export default function AdminCoursesPage() {
               </div>
 
               <form onSubmit={handleUpdate} className="p-6 space-y-4">
-                {/* Course Title */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Course Title
@@ -954,8 +871,6 @@ export default function AdminCoursesPage() {
                     className="w-full pl-4 pr-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all outline-none text-gray-800"
                   />
                 </div>
-
-                {/* Course Description */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Description
@@ -967,8 +882,30 @@ export default function AdminCoursesPage() {
                     className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all outline-none text-gray-800 resize-none"
                   />
                 </div>
-
-                {/* Instructor (Pengajar) Dropdown */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Thumbnail URL
+                  </label>
+                  <input
+                    type="text"
+                    value={editThumbnail}
+                    onChange={(e) => setEditThumbnail(e.target.value)}
+                    placeholder="https://image-url.com/foto.png"
+                    className="w-full pl-4 pr-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all outline-none text-gray-800"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Category
+                  </label>
+                  <input
+                    type="text"
+                    value={editCategory}
+                    onChange={(e) => setEditCategory(e.target.value)}
+                    placeholder="Programming"
+                    className="w-full pl-4 pr-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all outline-none text-gray-800"
+                  />
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Instructor
@@ -979,28 +916,12 @@ export default function AdminCoursesPage() {
                     className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all outline-none text-gray-800"
                   >
                     {instructors.map((i) => (
-                        <option key={i.id} value={i.id}>
-                            {i.name} ({i.role})
-                        </option>
+                      <option key={i.id} value={i.id}>
+                        {i.name}
+                      </option>
                     ))}
                   </select>
                 </div>
-                
-                {/* Course Status */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Course Status
-                  </label>
-                  <select
-                    value={editStatus}
-                    onChange={(e) => setEditStatus(e.target.value)}
-                    className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all outline-none text-gray-800"
-                  >
-                    <option value="draft">Draft (Not Visible)</option>
-                    <option value="published">Published (Active)</option>
-                  </select>
-                </div>
-
                 <div className="flex justify-end gap-3 pt-4">
                   <motion.button
                     type="button"
@@ -1026,7 +947,6 @@ export default function AdminCoursesPage() {
         )}
       </AnimatePresence>
 
-      {/* View Course Detail Modal */}
       <AnimatePresence>
         {viewingCourse && (
           <motion.div
@@ -1075,7 +995,6 @@ export default function AdminCoursesPage() {
                 {detailData && !detailLoading && (
                   <div>
                     <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                      {/* Course Title */}
                       <div className="border-b border-gray-100 pb-2">
                         <dt className="text-sm font-medium text-gray-500">
                           Title
@@ -1084,50 +1003,48 @@ export default function AdminCoursesPage() {
                           {detailData.title}
                         </dd>
                       </div>
-                      
-                      {/* Course Status */}
-                      <div className="border-b border-gray-100 pb-2">
-                        <dt className="text-sm font-medium text-gray-500">
-                          Status
-                        </dt>
-                        <dd className="text-lg font-semibold text-gray-800">
-                          {detailData.status}
-                        </dd>
-                      </div>
 
-                      {/* Instructor Name */}
                       <div className="border-b border-gray-100 pb-2">
                         <dt className="text-sm font-medium text-gray-500">
                           Instructor
                         </dt>
                         <dd className="text-lg font-semibold text-gray-800">
-                          {getInstructorName(detailData.instructor_id)}
+                          {getInstructorName(detailData.teacher_id)}
                         </dd>
                       </div>
 
-                      {/* Created At (Contoh data tambahan) */}
-                      {detailData.created_at && (
-                          <div className="border-b border-gray-100 pb-2">
-                              <dt className="text-sm font-medium text-gray-500">
-                                  Created At
-                              </dt>
-                              <dd className="text-lg font-semibold text-gray-800">
-                                  {new Date(detailData.created_at).toLocaleDateString()}
-                              </dd>
-                          </div>
+                      {detailData.createdAt && (
+                        <div className="border-b border-gray-100 pb-2">
+                          <dt className="text-sm font-medium text-gray-500">
+                            Created At
+                          </dt>
+                          <dd className="text-lg font-semibold text-gray-800">
+                            {new Date(
+                              detailData.createdAt
+                            ).toLocaleDateString()}
+                          </dd>
+                        </div>
                       )}
-                      
-                      {/* Course Description - Full Span */}
+
+                      {detailData.category && (
+                        <div className="border-b border-gray-100 pb-2">
+                          <dt className="text-sm font-medium text-gray-500">
+                            Category
+                          </dt>
+                          <dd className="text-lg font-semibold text-gray-800">
+                            {detailData.category}
+                          </dd>
+                        </div>
+                      )}
+
                       <div className="border-b border-gray-100 pb-2 md:col-span-2">
                         <dt className="text-sm font-medium text-gray-500">
                           Description
                         </dt>
                         <dd className="text-base text-gray-800 whitespace-pre-wrap">
-                          {detailData.description}
+                          {detailData.description || "No description available"}
                         </dd>
                       </div>
-                      
-                      {/* Add other relevant course data here... */}
                     </dl>
                   </div>
                 )}
