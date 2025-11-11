@@ -246,6 +246,29 @@ export default function DashboardPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {coursesLoading && (
+              <p className="text-gray-500 italic col-span-2">
+                Loading courses...
+              </p>
+            )}
+
+            {!coursesLoading && myCourses.length === 0 && (
+              <div className="col-span-2 text-center bg-white/80 backdrop-blur-lg p-8 rounded-2xl border border-gray-200 shadow">
+                <p className="text-lg font-semibold text-gray-700 mb-2">
+                  Kamu belum mengikuti course apapun 📚
+                </p>
+                <p className="text-gray-500 mb-4">
+                  Yuk mulai belajar—temukan course terbaik untukmu!
+                </p>
+                <Link
+                  href="/courses"
+                  className="inline-block bg-gradient-to-r from-blue-500 to-purple-600 text-white font-medium px-5 py-2 rounded-lg hover:shadow-lg transition-all"
+                >
+                  Browse All Courses
+                </Link>
+              </div>
+            )}
+
             {myCourses.map((course, index) => (
               <motion.div
                 key={course.id}
