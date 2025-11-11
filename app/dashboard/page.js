@@ -58,54 +58,95 @@ export default function DashboardPage() {
           setCoursesLoading(true);
           setCoursesError(null);
 
-          const enrollmentResponse = await apiFetch("/api/enrollments");
-          if (enrollmentResponse.status !== "success") {
-            throw new Error(
-              enrollmentResponse.message || "Gagal ambil data enrollment"
-            );
-          }
-          const enrollments = enrollmentResponse.data || [];
+          // Jika user adalah pengajar, ambil course yang dia ajar
+          if (user.role === "pengajar") {
+            const params = new URLSearchParams();
+            params.append("teacher_id", user.id);
+            params.append("per_page", 100); // Ambil semua course pengajar
 
-          if (enrollments.length === 0) {
-            setMyCourses([]);
-            setCoursesLoading(false);
-            return;
-          }
-
-          const courseDetailPromises = enrollments.map(async (enroll) => {
-            const courseRes = await apiFetch(
-              `/api/courses/${enroll.course_id}`
-            );
-            if (courseRes.status !== "success") {
-              console.error(`Gagal ambil course ID ${enroll.course_id}`);
-              return null;
-            }
-            const courseData = courseRes.data;
-
-            try {
-              const enrollCountRes = await apiFetch(
-                `/api/enrollments?course_id=${enroll.course_id}`
+            const coursesResponse = await apiFetch(`/api/courses?${params.toString()}`);
+            if (coursesResponse.status !== "success") {
+              throw new Error(
+                coursesResponse.message || "Gagal ambil data course"
               );
-              if (enrollCountRes.status === "success") {
-                courseData.students = enrollCountRes.count;
-              } else {
+            }
+
+            const courses = coursesResponse.data || [];
+
+            // Ambil jumlah siswa untuk setiap course
+            const coursesWithStudents = await Promise.all(
+              courses.map(async (course) => {
+                try {
+                  const enrollCountRes = await apiFetch(
+                    `/api/enrollments?course_id=${course.id}`
+                  );
+                  if (enrollCountRes.status === "success") {
+                    course.students = enrollCountRes.count || 0;
+                  } else {
+                    course.students = 0;
+                  }
+                } catch (e) {
+                  course.students = 0;
+                }
+
+                course.duration = course.schedule ? "2 jam" : "N/A";
+                return course;
+              })
+            );
+
+            setMyCourses(coursesWithStudents);
+            toast.success("Daftar course Anda dimuat!");
+          } else {
+            // Jika user adalah murid, ambil course yang di-enroll
+            const enrollmentResponse = await apiFetch("/api/enrollments");
+            if (enrollmentResponse.status !== "success") {
+              throw new Error(
+                enrollmentResponse.message || "Gagal ambil data enrollment"
+              );
+            }
+            const enrollments = enrollmentResponse.data || [];
+
+            if (enrollments.length === 0) {
+              setMyCourses([]);
+              setCoursesLoading(false);
+              return;
+            }
+
+            const courseDetailPromises = enrollments.map(async (enroll) => {
+              const courseRes = await apiFetch(
+                `/api/courses/${enroll.course_id}`
+              );
+              if (courseRes.status !== "success") {
+                console.error(`Gagal ambil course ID ${enroll.course_id}`);
+                return null;
+              }
+              const courseData = courseRes.data;
+
+              try {
+                const enrollCountRes = await apiFetch(
+                  `/api/enrollments?course_id=${enroll.course_id}`
+                );
+                if (enrollCountRes.status === "success") {
+                  courseData.students = enrollCountRes.count;
+                } else {
+                  courseData.students = 0;
+                }
+              } catch (e) {
                 courseData.students = 0;
               }
-            } catch (e) {
-              courseData.students = 0;
-            }
 
-            courseData.duration = courseData.schedule ? "2 jam" : "N/A";
+              courseData.duration = courseData.schedule ? "2 jam" : "N/A";
 
-            return courseData;
-          });
+              return courseData;
+            });
 
-          const courseDetails = (
-            await Promise.all(courseDetailPromises)
-          ).filter(Boolean);
+            const courseDetails = (
+              await Promise.all(courseDetailPromises)
+            ).filter(Boolean);
 
-          setMyCourses(courseDetails);
-          toast.success("My Courses loaded!");
+            setMyCourses(courseDetails);
+            toast.success("My Courses loaded!");
+          }
         } catch (err) {
           setCoursesError(err.message);
           toast.error(`Gagal load courses: ${err.message}`);
@@ -221,7 +262,9 @@ export default function DashboardPage() {
             <Sparkles className="w-6 h-6 text-yellow-500" />
           </div>
           <p className="text-gray-600">
-            Siap untuk melanjutkan perjalanan belajarmu hari ini?
+            {user.role === "pengajar"
+              ? "Kelola dan pantau course yang Anda ajar"
+              : "Siap untuk melanjutkan perjalanan belajarmu hari ini?"}
           </p>
         </motion.div>
 
@@ -234,15 +277,27 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <GraduationCap className="w-6 h-6 text-blue-600" />
-              <h2 className="text-2xl font-bold text-gray-800">My Courses</h2>
+              <h2 className="text-2xl font-bold text-gray-800">
+                {user.role === "pengajar" ? "Course yang Saya Ajar" : "My Courses"}
+              </h2>
             </div>
-            <Link
-              href="/courses"
-              className="flex items-center gap-2 text-blue-600 hover:text-purple-600 font-medium transition-colors"
-            >
-              Browse All
-              <ChevronRight className="w-4 h-4" />
-            </Link>
+            {user.role === "pengajar" ? (
+              <Link
+                href="/admin/courses_admin"
+                className="flex items-center gap-2 text-blue-600 hover:text-purple-600 font-medium transition-colors"
+              >
+                Kelola Course
+                <ChevronRight className="w-4 h-4" />
+              </Link>
+            ) : (
+              <Link
+                href="/courses"
+                className="flex items-center gap-2 text-blue-600 hover:text-purple-600 font-medium transition-colors"
+              >
+                Browse All
+                <ChevronRight className="w-4 h-4" />
+              </Link>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -255,17 +310,30 @@ export default function DashboardPage() {
             {!coursesLoading && myCourses.length === 0 && (
               <div className="col-span-2 text-center bg-white/80 backdrop-blur-lg p-8 rounded-2xl border border-gray-200 shadow">
                 <p className="text-lg font-semibold text-gray-700 mb-2">
-                  Kamu belum mengikuti course apapun 📚
+                  {user.role === "pengajar"
+                    ? "Anda belum memiliki course yang diajar 📚"
+                    : "Kamu belum mengikuti course apapun 📚"}
                 </p>
                 <p className="text-gray-500 mb-4">
-                  Yuk mulai belajar—temukan course terbaik untukmu!
+                  {user.role === "pengajar"
+                    ? "Mulai buat course pertama Anda untuk mengajar siswa!"
+                    : "Yuk mulai belajar—temukan course terbaik untukmu!"}
                 </p>
-                <Link
-                  href="/courses"
-                  className="inline-block bg-gradient-to-r from-blue-500 to-purple-600 text-white font-medium px-5 py-2 rounded-lg hover:shadow-lg transition-all"
-                >
-                  Browse All Courses
-                </Link>
+                {user.role === "pengajar" ? (
+                  <Link
+                    href="/admin/courses_admin"
+                    className="inline-block bg-gradient-to-r from-blue-500 to-purple-600 text-white font-medium px-5 py-2 rounded-lg hover:shadow-lg transition-all"
+                  >
+                    Buat Course Baru
+                  </Link>
+                ) : (
+                  <Link
+                    href="/courses"
+                    className="inline-block bg-gradient-to-r from-blue-500 to-purple-600 text-white font-medium px-5 py-2 rounded-lg hover:shadow-lg transition-all"
+                  >
+                    Browse All Courses
+                  </Link>
+                )}
               </div>
             )}
 
@@ -313,48 +381,61 @@ export default function DashboardPage() {
                     {course.title}
                   </h3>
 
-                  <div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
-                    <User className="w-4 h-4" />
-                    <span>{course.instructor}</span>
-                  </div>
+                  {user.role !== "pengajar" && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
+                      <User className="w-4 h-4" />
+                      <span>{course.instructor}</span>
+                    </div>
+                  )}
 
                   <p className="text-sm text-gray-500 mb-4 line-clamp-2">
                     {course.description || "Tidak ada deskripsi."}
                   </p>
 
                   <div className="flex items-center justify-between text-sm text-gray-600 mb-4">
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-4 flex-wrap">
                       <div className="flex items-center gap-1">
                         <Clock className="w-4 h-4" />
                         <span>{course.duration}</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <Users className="w-4 h-4" />
-                        <span>{course.students} Murid</span>
+                        <span>{course.students || 0} Murid</span>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <CalendarDays className="w-4 h-4" />
-                        <span>Hari {course.schedule.day}, </span>
-                        <span>Pukul {course.schedule.time}</span>
-                      </div>
+                      {course.schedule && course.schedule.day && course.schedule.time && (
+                        <div className="flex items-center gap-1">
+                          <CalendarDays className="w-4 h-4" />
+                          <span>Hari {course.schedule.day}, </span>
+                          <span>Pukul {course.schedule.time}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  <Link href={`/courses/${course.id}`}>
-                    <button className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 rounded-xl font-semibold hover:shadow-lg transition-all group">
-                      {course.progress > 0 ? (
-                        <>
-                          Continue Learning
-                          <Play className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                        </>
-                      ) : (
-                        <>
-                          Start Course
-                          <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                        </>
-                      )}
-                    </button>
-                  </Link>
+                  {user.role === "pengajar" ? (
+                    <Link href={`/dashboard/teacher/${course.id}`}>
+                      <button className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-3 rounded-xl font-semibold hover:shadow-lg transition-all group">
+                        Lihat Daftar Murid
+                        <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                      </button>
+                    </Link>
+                  ) : (
+                    <Link href={`/courses/${course.id}`}>
+                      <button className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 rounded-xl font-semibold hover:shadow-lg transition-all group">
+                        {course.progress > 0 ? (
+                          <>
+                            Continue Learning
+                            <Play className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                          </>
+                        ) : (
+                          <>
+                            Start Course
+                            <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                          </>
+                        )}
+                      </button>
+                    </Link>
+                  )}
                 </div>
               </motion.div>
             ))}
