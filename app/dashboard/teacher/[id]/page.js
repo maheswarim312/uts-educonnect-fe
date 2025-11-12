@@ -56,8 +56,9 @@ export default function TeacherCourseStudentsPage() {
 
   useEffect(() => {
     if (
-      (user && courseId && user.role === "pengajar") ||
-      user.role === "admin"
+      user &&
+      courseId &&
+      (user.role === "pengajar" || user.role === "admin")
     ) {
       fetchCourseData();
     }
