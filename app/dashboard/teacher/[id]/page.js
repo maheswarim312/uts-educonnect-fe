@@ -47,15 +47,18 @@ export default function TeacherCourseStudentsPage() {
       return;
     }
 
-    if (user.role !== "pengajar") {
-      toast.error("Akses ditolak! Hanya untuk pengajar.");
+    if (user.role !== "pengajar" && user.role !== "admin") {
+      toast.error("Akses ditolak! Hanya untuk pengajar atau admin.");
       router.push("/dashboard");
       return;
     }
   }, [user, loading, router]);
 
   useEffect(() => {
-    if (user && courseId && user.role === "pengajar") {
+    if (
+      (user && courseId && user.role === "pengajar") ||
+      user.role === "admin"
+    ) {
       fetchCourseData();
     }
   }, [user, courseId, apiFetch]);
@@ -72,7 +75,7 @@ export default function TeacherCourseStudentsPage() {
       }
 
       // Verify that this course belongs to the teacher
-      if (courseRes.data.teacher_id !== user.id) {
+      if (user.role === "pengajar" && courseRes.data.teacher_id !== user.id) {
         toast.error("Anda tidak memiliki akses ke course ini!");
         router.push("/dashboard");
         return;
@@ -449,7 +452,9 @@ export default function TeacherCourseStudentsPage() {
                             <input
                               type="text"
                               value={editGradeValue}
-                              onChange={(e) => setEditGradeValue(e.target.value)}
+                              onChange={(e) =>
+                                setEditGradeValue(e.target.value)
+                              }
                               placeholder="A, B+, B, C+, dll"
                               className="w-24 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
                               maxLength={5}
@@ -528,4 +533,3 @@ export default function TeacherCourseStudentsPage() {
     </div>
   );
 }
-

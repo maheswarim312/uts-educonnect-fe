@@ -59,12 +59,18 @@ export default function DashboardPage() {
           setCoursesError(null);
 
           // Jika user adalah pengajar, ambil course yang dia ajar
-          if (user.role === "pengajar") {
+          if (user.role === "pengajar" || user.role === "admin") {
             const params = new URLSearchParams();
-            params.append("teacher_id", user.id);
-            params.append("per_page", 100); // Ambil semua course pengajar
+            params.append("per_page", 100);
 
-            const coursesResponse = await apiFetch(`/api/courses?${params.toString()}`);
+            if (user.role === "pengajar") {
+              params.append("teacher_id", user.id);
+            }
+
+            const coursesResponse = await apiFetch(
+              `/api/courses?${params.toString()}`
+            );
+
             if (coursesResponse.status !== "success") {
               throw new Error(
                 coursesResponse.message || "Gagal ambil data course"
@@ -262,8 +268,8 @@ export default function DashboardPage() {
             <Sparkles className="w-6 h-6 text-yellow-500" />
           </div>
           <p className="text-gray-600">
-            {user.role === "pengajar"
-              ? "Kelola dan pantau course yang Anda ajar"
+            {user.role === "pengajar" || user.role === "admin"
+              ? "Kelola dan pantau course yang ada"
               : "Siap untuk melanjutkan perjalanan belajarmu hari ini?"}
           </p>
         </motion.div>
@@ -278,10 +284,12 @@ export default function DashboardPage() {
             <div className="flex items-center gap-3">
               <GraduationCap className="w-6 h-6 text-blue-600" />
               <h2 className="text-2xl font-bold text-gray-800">
-                {user.role === "pengajar" ? "Course yang Saya Ajar" : "My Courses"}
+                {user.role === "pengajar" || user.role === "admin"
+                  ? "Kelola Course"
+                  : "My Courses"}
               </h2>
             </div>
-            {user.role === "pengajar" ? (
+            {user.role === "pengajar" || user.role === "admin" ? (
               <Link
                 href="/admin/courses_admin"
                 className="flex items-center gap-2 text-blue-600 hover:text-purple-600 font-medium transition-colors"
@@ -310,16 +318,16 @@ export default function DashboardPage() {
             {!coursesLoading && myCourses.length === 0 && (
               <div className="col-span-2 text-center bg-white/80 backdrop-blur-lg p-8 rounded-2xl border border-gray-200 shadow">
                 <p className="text-lg font-semibold text-gray-700 mb-2">
-                  {user.role === "pengajar"
-                    ? "Anda belum memiliki course yang diajar 📚"
+                  {user.role === "pengajar" || user.role === "admin"
+                    ? "Belum ada course yang bisa dikelola 📚"
                     : "Kamu belum mengikuti course apapun 📚"}
                 </p>
                 <p className="text-gray-500 mb-4">
-                  {user.role === "pengajar"
-                    ? "Mulai buat course pertama Anda untuk mengajar siswa!"
+                  {user.role === "pengajar" || user.role === "admin"
+                    ? "Mulai buat course pertama untuk diisi siswa!"
                     : "Yuk mulai belajar—temukan course terbaik untukmu!"}
                 </p>
-                {user.role === "pengajar" ? (
+                {user.role === "pengajar" || user.role === "admin" ? (
                   <Link
                     href="/admin/courses_admin"
                     className="inline-block bg-gradient-to-r from-blue-500 to-purple-600 text-white font-medium px-5 py-2 rounded-lg hover:shadow-lg transition-all"
@@ -402,17 +410,19 @@ export default function DashboardPage() {
                         <Users className="w-4 h-4" />
                         <span>{course.students || 0} Murid</span>
                       </div>
-                      {course.schedule && course.schedule.day && course.schedule.time && (
-                        <div className="flex items-center gap-1">
-                          <CalendarDays className="w-4 h-4" />
-                          <span>Hari {course.schedule.day}, </span>
-                          <span>Pukul {course.schedule.time}</span>
-                        </div>
-                      )}
+                      {course.schedule &&
+                        course.schedule.day &&
+                        course.schedule.time && (
+                          <div className="flex items-center gap-1">
+                            <CalendarDays className="w-4 h-4" />
+                            <span>Hari {course.schedule.day}, </span>
+                            <span>Pukul {course.schedule.time}</span>
+                          </div>
+                        )}
                     </div>
                   </div>
 
-                  {user.role === "pengajar" ? (
+                  {user.role === "pengajar" || user.role === "admin" ? (
                     <Link href={`/dashboard/teacher/${course.id}`}>
                       <button className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-3 rounded-xl font-semibold hover:shadow-lg transition-all group">
                         Lihat Daftar Murid
